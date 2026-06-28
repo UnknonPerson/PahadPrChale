@@ -1,399 +1,181 @@
-# 🌄 North East Travel Planner
+# 🌄 PahadPrChale
 
 > **"Most travel websites sell packages. We build journeys."**
 
-A modern travel platform focused on **Sikkim, Darjeeling, and North East India**, allowing travelers to create fully customized trips based on their preferences, budget, travel style, accommodation choices, and transportation requirements.
-
-Unlike traditional travel websites that offer fixed itineraries, North East Travel Planner enables travelers to design experiences that fit their needs.
+PahadPrChale is a modern travel planning platform focused on **Sikkim, Darjeeling, and North East India**. Instead of offering fixed tour packages, it allows travelers to create personalized trips based on their budget, travel dates, destinations, hotel preferences, and transportation choices.
 
 ---
 
-# 📖 Vision
+# ✨ Features
 
-To become the most trusted travel planning platform for North East India by offering personalized journeys instead of pre-designed tour packages.
+### 🌍 Travel Planning
+- Custom Trip Builder
+- Browse Popular Destinations
+- Destination Details
+- Tour Packages
+- Package Details
+- Dynamic Travel Itinerary
+- Budget-Friendly Trip Planning
 
-We believe every traveler is different, and their trip should be too.
+### 🏨 Accommodation
+- Budget Hotels
+- Standard Hotels
+- Premium Hotels
+- Luxury Hotels
+
+### 🚗 Transportation
+- Private Vehicle Options
+- Shared Transportation
+- Vehicle Selection
+
+### 🔍 Search & Navigation
+- Destination Search
+- Responsive Navigation
+- Fast Page Navigation using React Router
+
+### 🎨 User Experience
+- Fully Responsive Design
+- Dark Mode Support
+- Modern UI
+- Reusable Components
+- Customer Testimonials
+
+### 📞 Inquiry & Booking
+- Booking Page
+- Contact Page
+- Trip Inquiry Form
+- Manual Booking Process (MVP)
 
 ---
 
-# 🚨 Problem Statement
+# 🚀 Upcoming Features
 
-Most travel platforms provide fixed packages with limited flexibility.
-
-Travelers often face challenges such as:
-
-* Pre-defined itineraries
-* Limited customization
-* Hidden costs
-* Lack of transportation options
-* Difficulty planning multi-destination trips
-* Multiple calls with travel agents to create personalized tours
-
-As a result, travelers spend significant time trying to create the trip they actually want.
-
----
-
-# 💡 Our Solution
-
-North East Travel Planner allows travelers to:
-
-* Select destinations
-* Choose travel dates
-* Set their budget
-* Pick hotel categories
-* Choose private or shared transportation
-* Add special requirements
-
-The platform then creates a customized travel plan and provides a personalized quotation.
+- User Authentication
+- Admin Dashboard
+- Online Booking
+- Razorpay Payment Integration
+- AI Trip Planner
+- AI Itinerary Generator
+- Google Maps Integration
+- WhatsApp Booking
+- Hotel Management
+- Vehicle Management
+- Booking Tracking
+- Travel Blogs
+- Customer Reviews & Ratings
+- Wishlist
+- PDF Trip Quotation
+- Multi-language Support
 
 ---
 
-# 🎯 Target Audience
+# 🛠 Tech Stack
 
-## 👨‍👩‍👧‍👦 Families
+### Frontend
+- React
+- TypeScript
+- Vite
+- Tailwind CSS
+- React Router
+- Framer Motion
 
-* Comfortable travel experiences
-* Private vehicles
-* Family-friendly accommodations
-
-## ❤️ Couples
-
-* Honeymoon packages
-* Romantic destinations
-* Premium stays
-
-## 🎒 Friends Groups
-
-* Budget travel
-* Shared transportation
-* Adventure activities
-
-## 🚶 Solo Travelers
-
-* Flexible itineraries
-* Affordable options
-* Community travel experiences
-
-## 🏢 Corporate Teams
-
-* Team outings
-* Offsite meetings
-* Corporate retreats
-* Incentive travel programs
+### Backend (Planned)
+- Node.js
+- Express.js
+- MongoDB
+- Mongoose
+- JWT Authentication
+- Cloudinary
 
 ---
 
 # 📍 Launch Destinations
 
-## Sikkim
+### Sikkim
+- Gangtok
+- Lachen
+- Lachung
+- Yumthang Valley
+- Gurudongmar Lake
+- Pelling
+- Ravangla
+- Namchi
+- Zuluk
+- Nathula Pass
+- Tsomgo Lake
+- Baba Mandir
 
-* Gangtok
-* Lachen
-* Lachung
-* Yumthang Valley
-* Gurudongmar Lake
-* Pelling
-* Ravangla
-* Namchi
-
-## East Sikkim
-
-* Zuluk
-* Nathula Pass
-* Tsomgo Lake
-* Baba Mandir
-
-## Darjeeling Region
-
-* Darjeeling
-* Kalimpong
-* Mirik
-
-## Future Expansion
-
-* Meghalaya
-* Arunachal Pradesh
-* Assam
-* Bhutan
+### Darjeeling Region
+- Darjeeling
+- Kalimpong
+- Mirik
 
 ---
 
-# ✨ Core Features
+# 🚀 Installation
 
-## 🧳 Custom Trip Builder
+Clone the repository
 
-Users can create their own travel package by selecting:
+```bash
+git clone https://github.com/yourusername/PahadPrChale.git
+```
 
-* Number of travelers
-* Travel dates
-* Trip duration
-* Budget
-* Destinations
-* Hotel category
-* Transportation preference
+Go to the project folder
 
----
+```bash
+cd Frontend
+```
 
-## 🚗 Transportation Options
+Install dependencies
 
-### Private Vehicles
+```bash
+npm install
+```
 
-* Sedan
-* Ertiga
-* Innova Crysta
-* Tempo Traveller
+Run the development server
 
-### Shared Transportation
+```bash
+npm run dev
+```
 
-* Shared sightseeing
-* Budget group tours
-* Shared North Sikkim trips
+Build the project
 
----
-
-## 🏨 Accommodation Selection
-
-Choose from:
-
-* Budget
-* Standard
-* Premium
-* Luxury
+```bash
+npm run build
+```
 
 ---
 
-## 🗺 Dynamic Itinerary Generation
+# 🎯 Project Goals
 
-Example itinerary:
-
-### Day 1
-
-NJP / Bagdogra → Gangtok
-
-### Day 2
-
-Tsomgo Lake + Nathula Pass
-
-### Day 3
-
-Gangtok → Lachung
-
-### Day 4
-
-Yumthang Valley
-
-### Day 5
-
-Gangtok Local Sightseeing
-
-### Day 6
-
-Departure
+- Provide personalized travel experiences.
+- Simplify North East trip planning.
+- Offer flexible travel options.
+- Reduce dependency on fixed travel packages.
+- Make travel planning fast, simple, and transparent.
 
 ---
 
-## 📱 Instant Inquiry System
+# 🤝 Contributing
 
-Users can request quotations through:
+Contributions are welcome!
 
-* WhatsApp
-* Contact Forms
-* Phone Calls
-
----
-
-# 🔄 Customer Journey
-
-1. Visit Homepage
-2. Select Destinations
-3. Choose Travel Dates
-4. Set Budget
-5. Select Hotel Category
-6. Choose Transportation Type
-7. Submit Inquiry
-8. Receive Customized Quote
-9. Confirm Booking
+1. Fork the repository.
+2. Create a new feature branch.
+3. Commit your changes.
+4. Push your branch.
+5. Open a Pull Request.
 
 ---
 
-# 🛠 Admin Dashboard
+# 📄 License
 
-## Destination Management
-
-* Add destinations
-* Edit destination details
-* Upload destination images
-
-## Hotel Management
-
-* Add hotels
-* Manage categories
-* Update pricing
-
-## Vehicle Management
-
-* Add vehicles
-* Update pricing
-* Manage availability
-
-## Lead Management
-
-* View inquiries
-* Update lead status
-* Contact customers
-
-## Booking Management
-
-* Confirm bookings
-* Manage payments
-* Generate invoices
+This project is licensed under the MIT License.
 
 ---
 
-# 💰 Revenue Model
+# 👨‍💻 Developer
 
-## Package Service Fees
+**Tanish Kumar**
 
-Profit margin on every booking.
-
-## Hotel Commissions
-
-Commission from partnered hotels.
-
-## Vehicle Commissions
-
-Commission from transportation providers.
-
-## Corporate Packages
-
-Premium pricing for corporate clients.
-
-## Additional Services
-
-* Travel Insurance
-* Adventure Activities
-* Photography Packages
-* Airport Transfers
-
----
-
-# 🚀 Development Roadmap
-
-## Phase 1 — MVP
-
-Goal: Generate and manage leads.
-
-### Features
-
-* Homepage
-* Destination Pages
-* Custom Trip Builder
-* Inquiry Forms
-* WhatsApp Integration
-* Admin Dashboard
-
-**Booking Process:** Manual
-
----
-
-## Phase 2
-
-### Features
-
-* User Authentication
-* Online Booking
-* Razorpay Integration
-* Booking Tracking
-* User Dashboard
-
----
-
-## Phase 3
-
-### Features
-
-* AI Itinerary Generator
-* Dynamic Pricing Engine
-* Vendor Dashboard
-* Hotel Inventory Management
-* Recommendation System
-
----
-
-# 🏗 Tech Stack
-
-## Frontend
-
-* React.js
-* Tailwind CSS
-* React Router
-* Framer Motion
-
-## Backend
-
-* Node.js
-* Express.js
-
-## Database
-
-* MongoDB
-* Mongoose
-
-## Authentication
-
-* JWT Authentication
-* HTTP Cookies
-
-## Cloud Storage
-
-* Cloudinary
-
-## Future Integrations
-
-* Razorpay
-* Google Maps API
-* WhatsApp Business API
-
----
-
-# 📊 Success Metrics
-
-### Year 1 Goals
-
-* 1,000+ Travel Leads
-* 100+ Successful Bookings
-* 10+ Corporate Clients
-* 4.5+ Customer Rating
-* Strong Referral Network
-
----
-
-# 🌟 Unique Selling Proposition
-
-### Traditional Travel Websites
-
-* Fixed Packages
-* Limited Customization
-* Generic Experiences
-
-### North East Travel Planner
-
-✅ Personalized Itineraries
-
-✅ Flexible Budget Planning
-
-✅ Private & Shared Transportation
-
-✅ Corporate Travel Solutions
-
-✅ Local Expertise
-
-✅ Human-Centered Travel Planning
-
----
-
-# 🤝 Mission
-
-To help travelers explore North East India through journeys designed specifically for them—not selected from a catalogue.
-
-Every traveler deserves a trip that feels personal, memorable, and uniquely theirs.
+Passionate Full Stack Developer building modern web applications and personalized travel experiences for North East India.
