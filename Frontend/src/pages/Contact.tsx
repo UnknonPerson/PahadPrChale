@@ -1,14 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import {
-  MapPin,
-  Phone,
-  Mail,
-  Clock,
-  Send,
-  MessageSquare,
-  CheckCircle,
-} from 'lucide-react';
+import { MapPin, Phone, Mail, Clock, Send, MessageSquare, CircleCheck as CheckCircle } from 'lucide-react';
 import Button from '../components/ui/Button';
 import SectionTitle from '../components/ui/SectionTitle';
 
@@ -16,22 +8,22 @@ const contactInfo = [
   {
     icon: MapPin,
     title: 'Visit Us',
-    details: ['HimalayaTravels Office', 'Hill Cart Road', 'Siliguri, West Bengal 734001'],
+    details: ['PahadPerChale Office', 'Gurung Basti, Siliguri', 'West Bengal 734001'],
   },
   {
     icon: Phone,
     title: 'Call Us',
-    details: ['+91 98765 43210', '+91 353 253 4789'],
+    details: ['+91 62055 84013', '+91 98765 43210'],
   },
   {
     icon: Mail,
     title: 'Email Us',
-    details: ['hello@himalayatravels.com', 'bookings@himalayatravels.com'],
+    details: ['contact@pahadperchale.com', 'bookings@pahadperchale.com'],
   },
   {
     icon: Clock,
     title: 'Working Hours',
-    details: ['Mon - Sat: 9:00 AM - 7:00 PM', 'Sunday: 10:00 AM - 4:00 PM'],
+    details: ['Mon - Sat: 9:00 AM - 7:00 PM', 'Sunday: Closed'],
   },
 ];
 

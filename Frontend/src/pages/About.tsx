@@ -127,9 +127,9 @@ export default function About() {
               />
               <div className="space-y-4 text-gray-600 dark:text-gray-300">
                 <p>
-                  HimalayaTravels was born from a simple dream: to share the breathtaking beauty
-                  of Northeast India with travelers from around the world. Founded in 2010 by
-                  Rajesh Thapa, a native of Darjeeling with an unwavering passion for his homeland,
+                  PahadPerChale was born from a simple dream: to share the breathtaking beauty
+                  of Northeast India with travelers from around the world. Founded with a passion
+                  for the mountains and an unwavering love for the homeland,
                   we started as a small family-run operation.
                 </p>
                 <p>

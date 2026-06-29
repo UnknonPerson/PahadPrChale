@@ -1,15 +1,5 @@
 import { Link } from 'react-router-dom';
-import {
-  Mountain,
-  MapPin,
-  Phone,
-  Mail,
-  Clock,
-  Facebook,
-  Instagram,
-  Twitter,
-  Youtube,
-} from 'lucide-react';
+import { Mountain, MapPin, Phone, Mail, Clock, Notebook as Facebook, Drama as Instagram, Battery as Twitter, Route as Youtube } from 'lucide-react';
 
 const footerLinks = {
   destinations: [
@@ -41,12 +31,11 @@ export default function Footer() {
                 <Mountain className="w-6 h-6 text-white" />
               </div>
               <span className="text-xl font-display font-bold text-white">
-                Himalaya<span className="text-primary-500">Travels</span>
+                PahadPer<span className="text-primary-500">Chale</span>
               </span>
             </Link>
             <p className="text-gray-400 mb-6">
-              Discover the untouched beauty of NorthBeangal And Sikkim.
-              Creating memorable journeys since Today.
+              Your Personalized North East Travel Planner. Creating memorable journeys through the Himalayas.
             </p>
             <div className="flex items-center gap-4">
               <a
@@ -119,15 +108,15 @@ export default function Footer() {
               </li>
               <li className="flex items-center gap-3">
                 <Phone className="w-5 h-5 text-primary-400" />
-                <span>+91 620554013</span>
+                <span>+91 62055 84013</span>
               </li>
               <li className="flex items-center gap-3">
                 <Mail className="w-5 h-5 text-primary-400" />
-                <span>PahadPerCahl@gmail.com</span>
+                <span>contact@pahadperchale.com</span>
               </li>
               <li className="flex items-center gap-3">
                 <Clock className="w-5 h-5 text-primary-400" />
-                <span>Mon - Sat: 9AM - 7PM | Sun: Chunni </span>
+                <span>Mon - Sat: 9AM - 7PM | Sun: Closed</span>
               </li>
             </ul>
           </div>
@@ -136,7 +125,7 @@ export default function Footer() {
         <div className="mt-12 pt-8 border-t border-gray-800">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <p className="text-gray-400 text-sm">
-              &copy; {new Date().getFullYear()} PahadePerChale. All rights reserved.
+              &copy; {new Date().getFullYear()} PahadPerChale. All rights reserved.
             </p>
             <div className="flex items-center gap-6 text-sm">
               <a href="#" className="hover:text-primary-400 transition-colors">
