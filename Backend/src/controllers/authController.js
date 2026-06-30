@@ -33,7 +33,7 @@ export const register = asyncHandler(async (req, res) => {
     httpOnly: true,
     expires: getTokenExpiration(),
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
+    sameSite: 'none',
   });
 
   sendSuccess(
@@ -87,8 +87,8 @@ export const login = asyncHandler(async (req, res) => {
   res.cookie('token', token, {
     httpOnly: true,
     expires: getTokenExpiration(),
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
+    secure: true,
+    sameSite: 'none',
   });
 
   sendSuccess(
@@ -117,6 +117,8 @@ export const logout = asyncHandler(async (req, res) => {
   res.cookie('token', 'none', {
     expires: new Date(Date.now() + 10 * 1000),
     httpOnly: true,
+    sameSite: 'none',
+    secure: true,
   });
 
   sendSuccess(res, null, 'Logged out successfully');
