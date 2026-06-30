@@ -1,61 +1,145 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { ThemeProvider } from './context/ThemeContext';
 import { AuthProvider } from './context/AuthContext';
+import { WishlistProvider } from './context/WishlistContext';
+import { ToastProvider } from './context/ToastContext';
+import { ApiProvider } from './services/ApiContext';
 import Layout from './components/layout/Layout';
 import Home from './pages/Home';
 import Packages from './pages/Packages';
 import PackageDetail from './pages/PackageDetail';
 import Destinations from './pages/Destinations';
 import DestinationDetail from './pages/DestinationDetail';
+import Hotels from './pages/Hotels';
+import HotelDetail from './pages/HotelDetail';
+import Vehicles from './pages/Vehicles';
+import VehicleDetail from './pages/VehicleDetail';
 import Booking from './pages/Booking';
+import TripPlanner from './pages/TripPlanner';
+import MyBookings from './pages/MyBookings';
+import Wishlist from './pages/Wishlist';
 import About from './pages/About';
 import Contact from './pages/Contact';
+import Profile from './pages/Profile';
+import UserSettings from './pages/Settings';
 import NotFound from './pages/NotFound';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import AdminLayout from './pages/admin/AdminLayout';
 import Dashboard from './pages/admin/Dashboard';
 import BookingsManagement from './pages/admin/Bookings';
 import PackagesManagement from './pages/admin/Packages';
 import DestinationsManagement from './pages/admin/Destinations';
+import HotelsManagement from './pages/admin/Hotels';
+import VehiclesManagement from './pages/admin/Vehicles';
 import Customers from './pages/admin/Customers';
 import ReviewsManagement from './pages/admin/Reviews';
 import Messages from './pages/admin/Messages';
-import Settings from './pages/admin/Settings';
+import AdminSettings from './pages/admin/Settings';
+import ProtectedRoute from './components/auth/ProtectedRoute';
 
 export default function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Layout />}>
-              <Route index element={<Home />} />
-              <Route path="packages" element={<Packages />} />
-              <Route path="packages/:id" element={<PackageDetail />} />
-              <Route path="destinations" element={<Destinations />} />
-              <Route path="destinations/:id" element={<DestinationDetail />} />
-              <Route path="booking" element={<Booking />} />
-              <Route path="about" element={<About />} />
-              <Route path="contact" element={<Contact />} />
-              <Route path="*" element={<NotFound />} />
-            </Route>
+        <ApiProvider>
+          <WishlistProvider>
+            <ToastProvider>
+              <BrowserRouter>
+                <Routes>
+                  {/* Public Routes */}
+                  <Route path="/" element={<Layout />}>
+                    <Route index element={<Home />} />
+                    <Route path="packages" element={<Packages />} />
+                    <Route path="packages/:id" element={<PackageDetail />} />
+                    <Route path="destinations" element={<Destinations />} />
+                    <Route path="destinations/:id" element={<DestinationDetail />} />
+                    <Route path="hotels" element={<Hotels />} />
+                    <Route path="hotels/:id" element={<HotelDetail />} />
+                    <Route path="vehicles" element={<Vehicles />} />
+                    <Route path="vehicles/:id" element={<VehicleDetail />} />
+                    <Route path="booking" element={<Booking />} />
+                    <Route path="trip-planner" element={<TripPlanner />} />
+                    <Route path="about" element={<About />} />
+                    <Route path="contact" element={<Contact />} />
+                    <Route path="*" element={<NotFound />} />
+                  </Route>
 
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
+                  {/* Auth Routes */}
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/register" element={<Register />} />
+                  <Route path="/forgot-password" element={<ForgotPassword />} />
+                  <Route path="/reset-password/:token" element={<ResetPassword />} />
 
-            <Route path="/admin" element={<AdminLayout />}>
-              <Route index element={<Dashboard />} />
-              <Route path="bookings" element={<BookingsManagement />} />
-              <Route path="packages" element={<PackagesManagement />} />
-              <Route path="destinations" element={<DestinationsManagement />} />
-              <Route path="customers" element={<Customers />} />
-              <Route path="reviews" element={<ReviewsManagement />} />
-              <Route path="messages" element={<Messages />} />
-              <Route path="settings" element={<Settings />} />
-            </Route>
-          </Routes>
-        </BrowserRouter>
+                  {/* Protected User Routes */}
+                  <Route
+                    path="/profile"
+                    element={
+                      <ProtectedRoute>
+                        <Layout />
+                      </ProtectedRoute>
+                    }
+                  >
+                    <Route index element={<Profile />} />
+                  </Route>
+                  <Route
+                    path="/bookings/my"
+                    element={
+                      <ProtectedRoute>
+                        <Layout />
+                      </ProtectedRoute>
+                    }
+                  >
+                    <Route index element={<MyBookings />} />
+                  </Route>
+                  <Route
+                    path="/wishlist"
+                    element={
+                      <ProtectedRoute>
+                        <Layout />
+                      </ProtectedRoute>
+                    }
+                  >
+                    <Route index element={<Wishlist />} />
+                  </Route>
+                  <Route
+                    path="/settings"
+                    element={
+                      <ProtectedRoute>
+                        <Layout />
+                      </ProtectedRoute>
+                    }
+                  >
+                    <Route index element={<UserSettings />} />
+                  </Route>
+
+                  {/* Admin Routes */}
+                  <Route
+                    path="/admin"
+                    element={
+                      <ProtectedRoute adminOnly>
+                        <AdminLayout />
+                      </ProtectedRoute>
+                    }
+                  >
+                    <Route index element={<Dashboard />} />
+                    <Route path="bookings" element={<BookingsManagement />} />
+                    <Route path="packages" element={<PackagesManagement />} />
+                    <Route path="destinations" element={<DestinationsManagement />} />
+                    <Route path="hotels" element={<HotelsManagement />} />
+                    <Route path="vehicles" element={<VehiclesManagement />} />
+                    <Route path="customers" element={<Customers />} />
+                    <Route path="reviews" element={<ReviewsManagement />} />
+                    <Route path="messages" element={<Messages />} />
+                    <Route path="settings" element={<AdminSettings />} />
+                  </Route>
+                </Routes>
+              </BrowserRouter>
+            </ToastProvider>
+          </WishlistProvider>
+        </ApiProvider>
       </AuthProvider>
     </ThemeProvider>
   );
