@@ -1,5 +1,12 @@
 import { motion } from 'framer-motion';
-import { ArrowRight, CircleCheck as CheckCircle, Shield, Headphones, Star, Sparkles } from 'lucide-react';
+import {
+  ArrowRight,
+  CheckCircle,
+  Shield,
+  Headphones,
+  Star,
+  Sparkles,
+} from "lucide-react";
 import { Link } from 'react-router-dom';
 import Button from '../components/ui/Button';
 import SectionTitle from '../components/ui/SectionTitle';

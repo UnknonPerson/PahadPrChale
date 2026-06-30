@@ -20,12 +20,12 @@ const startServer = async () => {
         ╔══════════════════════════════════════════╗
         ║                                          ║
         ║   PahadPerChale Backend Server           ║
-        ║   Your Personalized North East Travel   ║
+        ║   Your Personalized North East Travel    ║
         ║                                          ║
-        ║   Server running on port ${PORT}           ║
-        ║   Environment: ${process.env.NODE_ENV || 'development'}        ║
+        ║   Server running on port ${PORT}            ║
+        ║   Environment: ${process.env.NODE_ENV || 'development'}               ║
         ║                                          ║
-        ║   API: http://localhost:${PORT}/api        ║
+        ║   API: http://localhost:${PORT}/api         ║
         ║                                          ║
         ╚══════════════════════════════════════════╝
       `);
