@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Search, ListFilter as Filter, Grid2x2 as Grid, List, MapPin, Users, Fuel, Star, Settings, Shield } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { vehicles } from '../data/vehicles';
+import { useVehicles } from '../hooks/useVehicles';
+import { SkeletonCard } from '../components/ui/LoadingSpinner';
 
 const vehicleTypes = ['All', 'Sedan', 'SUV', 'Tempo Traveller', 'Minibus', 'Motorcycle'];
 const seatOptions = [
@@ -13,6 +14,7 @@ const seatOptions = [
 ];
 
 export default function Vehicles() {
+  const { vehicles, loading, error } = useVehicles();
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('All');
   const [seatsFilter, setSeatsFilter] = useState(0);
@@ -191,7 +193,24 @@ export default function Vehicles() {
           </div>
 
           {/* Vehicles Grid/List */}
-          {filteredVehicles.length > 0 ? (
+          {error && (
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-6 mb-6">
+              <p className="text-red-800 dark:text-red-200 font-medium">Error loading vehicles</p>
+              <p className="text-red-600 dark:text-red-300 text-sm mt-1">{error}</p>
+            </div>
+          )}
+
+          {loading ? (
+            <div className={
+              viewMode === 'grid'
+                ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'
+                : 'space-y-6'
+            }>
+              {Array.from({ length: 6 }).map((_, index) => (
+                <SkeletonCard key={index} />
+              ))}
+            </div>
+          ) : filteredVehicles.length > 0 ? (
             <div className={
               viewMode === 'grid'
                 ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'
@@ -273,6 +292,7 @@ export default function Vehicles() {
               <p className="text-surface-400">Try adjusting your filters</p>
             </div>
           )}
+
         </div>
       </section>
 

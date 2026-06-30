@@ -10,24 +10,30 @@ import {
   Check,
 } from 'lucide-react';
 import Button from '../components/ui/Button';
-import { destinations } from '../data/destinations';
+import { useDestination } from '../hooks/useDestinations';
 import { packages } from '../data/packages';
+import { PageLoader, SkeletonCard } from '../components/ui/LoadingSpinner';
 import PackageCard from '../components/ui/PackageCard';
 
 export default function DestinationDetail() {
   const { id } = useParams<{ id: string }>();
-  const destination = destinations.find((d) => d.id === id);
+  const { destination, loading, error } = useDestination(id);
   const relatedPackages = packages.filter(
     (p) => p.destination.toLowerCase().includes(destination?.name?.toLowerCase() || '')
   );
 
-  if (!destination) {
+  if (loading) {
+    return <PageLoader />;
+  }
+
+  if (error || !destination) {
     return (
       <div className="min-h-screen pt-32 flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
-            Destination not found
+            {error ? 'Error loading destination' : 'Destination not found'}
           </h1>
+          {error && <p className="text-gray-600 dark:text-gray-400 mb-4">{error}</p>}
           <Link to="/destinations">
             <Button variant="primary">Back to Destinations</Button>
           </Link>

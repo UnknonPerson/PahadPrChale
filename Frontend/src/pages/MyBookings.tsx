@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Calendar, MapPin, Clock, Users, Phone, Mail, CircleAlert as AlertCircle, CircleCheck as CheckCircle, Circle as XCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -6,6 +6,8 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { PageLoader } from '../components/ui/LoadingSpinner';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
+import { useMyBookings } from '../hooks/useBookings';
+import { useBookingActions } from '../hooks/useBookings';
 
 interface Booking {
   _id: string;
@@ -25,57 +27,14 @@ interface Booking {
   createdAt: string;
 }
 
-// Mock data for demo (will be replaced with API call)
-const mockBookings: Booking[] = [
-  {
-    _id: '1',
-    package: {
-      _id: 'pkg-1',
-      name: 'Darjeeling & Gangtok Explorer',
-      image: 'https://images.pexels.com/photos/2161467/pexels-photo-2161467.jpeg?auto=compress&cs=tinysrgb&w=800',
-      duration: '6 Days / 5 Nights',
-    },
-    packageName: 'Darjeeling & Gangtok Explorer',
-    destination: 'Darjeeling, Gangtok',
-    travelDate: '2024-04-15',
-    travelers: 4,
-    totalAmount: 99996,
-    status: 'confirmed',
-    createdAt: '2024-03-20',
-  },
-  {
-    _id: '2',
-    package: {
-      _id: 'pkg-2',
-      name: 'North Sikkim Adventure',
-      image: 'https://images.pexels.com/photos/2387871/pexels-photo-2387871.jpeg?auto=compress&cs=tinysrgb&w=800',
-      duration: '7 Days / 6 Nights',
-    },
-    packageName: 'North Sikkim Adventure',
-    destination: 'Gangtok, Lachung, Yumthang',
-    travelDate: '2024-05-01',
-    travelers: 2,
-    totalAmount: 71998,
-    status: 'pending',
-    createdAt: '2024-03-22',
-  },
-];
 
 export default function MyBookings() {
   const { user } = useAuth();
   const { success, error } = useToast();
-  const [bookings, setBookings] = useState<Booking[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { bookings, loading, error: loadingError, refetch } = useMyBookings();
+  const { cancel } = useBookingActions();
   const [filter, setFilter] = useState<'all' | 'upcoming' | 'pending' | 'completed' | 'cancelled'>('all');
   const [cancelBookingId, setCancelBookingId] = useState<string | null>(null);
-
-  useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
-      setBookings(mockBookings);
-      setLoading(false);
-    }, 1000);
-  }, []);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -114,11 +73,9 @@ export default function MyBookings() {
   const handleCancelBooking = async () => {
     if (!cancelBookingId) return;
     try {
-      // API call would go here
-      setBookings(prev => prev.map(b =>
-        b._id === cancelBookingId ? { ...b, status: 'cancelled' as const } : b
-      ));
+      await cancel(cancelBookingId);
       success('Booking cancelled successfully');
+      refetch();
     } catch (err) {
       error('Failed to cancel booking');
     } finally {
@@ -128,6 +85,29 @@ export default function MyBookings() {
 
   if (loading) {
     return <PageLoader />;
+  }
+
+  if (loadingError) {
+    return (
+      <div className="min-h-screen bg-surface-50 dark:bg-surface-950 py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center py-20">
+            <div className="w-32 h-32 mx-auto bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mb-6">
+              <AlertCircle className="w-16 h-16 text-red-500" />
+            </div>
+            <h2 className="text-2xl font-display font-bold text-surface-900 dark:text-white mb-2">
+              Error loading bookings
+            </h2>
+            <p className="text-surface-500 mb-8 max-w-md mx-auto">
+              {loadingError}
+            </p>
+            <button onClick={refetch} className="btn-primary">
+              Try Again
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (

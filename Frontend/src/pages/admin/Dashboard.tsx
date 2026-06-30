@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import { useEffect, useState } from 'react';
 import {
   CalendarCheck,
   IndianRupee,
@@ -12,42 +13,8 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { dashboardStats, bookings } from '../../data/adminData';
-
-const statCards = [
-  {
-    title: 'Total Bookings',
-    value: dashboardStats.totalBookings,
-    icon: CalendarCheck,
-    change: '+12%',
-    changeType: 'increase',
-    color: 'from-blue-500 to-blue-600',
-  },
-  {
-    title: 'Revenue',
-    value: `₹${(dashboardStats.revenue / 100000).toFixed(1)}L`,
-    icon: IndianRupee,
-    change: '+18%',
-    changeType: 'increase',
-    color: 'from-green-500 to-green-600',
-  },
-  {
-    title: 'Active Tours',
-    value: dashboardStats.activeTours,
-    icon: Map,
-    change: '+5%',
-    changeType: 'increase',
-    color: 'from-orange-500 to-orange-600',
-  },
-  {
-    title: 'Registered Users',
-    value: dashboardStats.registeredUsers.toLocaleString(),
-    icon: Users,
-    change: '-3%',
-    changeType: 'decrease',
-    color: 'from-purple-500 to-purple-600',
-  },
-];
+import { bookingService } from '../../services/bookingService';
+import { fallbackDashboardStats, fallbackBookings } from '../../data/adminData';
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -65,7 +32,98 @@ const getStatusColor = (status: string) => {
 };
 
 export default function Dashboard() {
-  const recentBookings = bookings.slice(0, 5);
+  const [dashboardStats, setDashboardStats] = useState(fallbackDashboardStats);
+  const [recentBookings, setRecentBookings] = useState(fallbackBookings.slice(0, 5));
+  const [isLoading, setIsLoading] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState(new Date());
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        setIsLoading(true);
+
+        // Fetch dashboard stats
+        const statsResponse = await bookingService.getStats();
+        const stats = statsResponse?.data || statsResponse;
+
+        // Fetch all bookings and take the 5 most recent
+        const bookingsResponse = await bookingService.getAll();
+        const bookings = Array.isArray(bookingsResponse?.data)
+          ? bookingsResponse.data
+          : Array.isArray(bookingsResponse)
+          ? bookingsResponse
+          : [];
+
+        // Update state with fetched data or use fallback
+        if (stats && typeof stats === 'object') {
+          setDashboardStats(stats);
+        }
+
+        if (bookings.length > 0) {
+          setRecentBookings(bookings.slice(0, 5));
+        }
+
+        setLastUpdated(new Date());
+      } catch (error) {
+        console.error('Failed to fetch dashboard data:', error);
+        // Keep fallback data already set in state
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
+
+  // Build stat cards dynamically from fetched or fallback data
+  const statCards = [
+    {
+      title: 'Total Bookings',
+      value: dashboardStats.totalBookings,
+      icon: CalendarCheck,
+      change: '+12%',
+      changeType: 'increase',
+      color: 'from-blue-500 to-blue-600',
+    },
+    {
+      title: 'Revenue',
+      value: `₹${(dashboardStats.revenue / 100000).toFixed(1)}L`,
+      icon: IndianRupee,
+      change: '+18%',
+      changeType: 'increase',
+      color: 'from-green-500 to-green-600',
+    },
+    {
+      title: 'Active Tours',
+      value: dashboardStats.activeTours,
+      icon: Map,
+      change: '+5%',
+      changeType: 'increase',
+      color: 'from-orange-500 to-orange-600',
+    },
+    {
+      title: 'Registered Users',
+      value: dashboardStats.registeredUsers.toLocaleString(),
+      icon: Users,
+      change: '-3%',
+      changeType: 'decrease',
+      color: 'from-purple-500 to-purple-600',
+    },
+  ];
+
+  const getLastUpdatedText = () => {
+    const now = new Date();
+    const diffMs = now.getTime() - lastUpdated.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`;
+
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+
+    return lastUpdated.toLocaleString();
+  };
 
   return (
     <div className="space-y-6">
@@ -80,7 +138,7 @@ export default function Dashboard() {
         </div>
         <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
           <Clock className="w-4 h-4" />
-          <span>Last updated: Just now</span>
+          <span>Last updated: {getLastUpdatedText()}</span>
         </div>
       </div>
 

@@ -1,16 +1,22 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, Search, CreditCard as Edit2, Trash2, Star, Clock, Users, X, Upload } from 'lucide-react';
-import { packages as initialPackages, type Package } from '../../data/packages';
+import { type Package } from '../../data/packages';
+import { usePackages, usePackageActions } from '../../hooks/usePackages';
 
 const categories = ['All', 'Adventure', 'Cultural', 'Nature', 'Pilgrimage'];
 
 export default function PackagesManagement() {
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
-  const [packagesList, setPackagesList] = useState<Package[]>(initialPackages);
   const [showForm, setShowForm] = useState(false);
   const [editingPackage, setEditingPackage] = useState<Package | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  const { packages: packagesList, loading, error, refetch } = usePackages();
+  const { create, update, remove } = usePackageActions();
+
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -106,30 +112,46 @@ export default function PackagesManagement() {
     setShowForm(true);
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm('Are you sure you want to delete this package?')) {
-      setPackagesList((prev) => prev.filter((p) => p.id !== id));
+      try {
+        setSubmitError(null);
+        await remove(id);
+        await refetch();
+      } catch (err) {
+        setSubmitError(err instanceof Error ? err.message : 'Failed to delete package');
+      }
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const newPackage: Package = {
-      ...formData,
-      id: editingPackage?.id || `pkg-${Date.now()}`,
-      highlights: formData.highlights.split(',').map((h) => h.trim()).filter(Boolean),
-      includes: formData.includes.split(',').map((h) => h.trim()).filter(Boolean),
-      excludes: formData.excludes.split(',').map((h) => h.trim()).filter(Boolean),
-    };
 
-    if (editingPackage) {
-      setPackagesList((prev) => prev.map((p) => (p.id === editingPackage.id ? newPackage : p)));
-    } else {
-      setPackagesList((prev) => [...prev, newPackage]);
+    try {
+      setIsSubmitting(true);
+      setSubmitError(null);
+
+      const packageData = {
+        ...formData,
+        highlights: formData.highlights.split(',').map((h) => h.trim()).filter(Boolean),
+        includes: formData.includes.split(',').map((h) => h.trim()).filter(Boolean),
+        excludes: formData.excludes.split(',').map((h) => h.trim()).filter(Boolean),
+      };
+
+      if (editingPackage) {
+        await update(editingPackage.id, packageData);
+      } else {
+        await create(packageData);
+      }
+
+      await refetch();
+      setShowForm(false);
+      resetForm();
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : 'Failed to save package');
+    } finally {
+      setIsSubmitting(false);
     }
-
-    setShowForm(false);
-    resetForm();
   };
 
   return (
@@ -182,16 +204,43 @@ export default function PackagesManagement() {
         </div>
       </div>
 
+      {/* Error Alert */}
+      {(error || submitError) && (
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4 text-red-700 dark:text-red-400">
+          {error || submitError}
+        </div>
+      )}
+
+      {/* Loading State */}
+      {loading && (
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500 mb-4"></div>
+            <p className="text-gray-500 dark:text-gray-400">Loading packages...</p>
+          </div>
+        </div>
+      )}
+
       {/* Packages Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredPackages.map((pkg, index) => (
-          <motion.div
-            key={pkg.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.05 }}
-            className="glass-card overflow-hidden hover:shadow-xl transition-all"
-          >
+      {loading ? (
+        <div className="flex items-center justify-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"></div>
+        </div>
+      ) : error ? (
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-6">
+          <p className="text-red-800 dark:text-red-200 font-medium">Error loading packages</p>
+          <p className="text-red-600 dark:text-red-300 text-sm mt-1">{error}</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredPackages.map((pkg, index) => (
+            <motion.div
+              key={pkg.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.05 }}
+              className="glass-card overflow-hidden hover:shadow-xl transition-all"
+            >
             <div className="relative h-40">
               <img
                 src={pkg.image}
@@ -260,12 +309,12 @@ export default function PackagesManagement() {
             </div>
           </motion.div>
         ))}
+        {filteredPackages.length === 0 && (
+          <div className="text-center py-12 text-gray-500">
+            No packages found
+          </div>
+        )}
       </div>
-
-      {filteredPackages.length === 0 && (
-        <div className="text-center py-12 text-gray-500">
-          No packages found
-        </div>
       )}
 
       {/* Add/Edit Form Modal */}
@@ -294,6 +343,11 @@ export default function PackagesManagement() {
             </div>
 
             <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+              {submitError && (
+                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 text-sm text-red-700 dark:text-red-400">
+                  {submitError}
+                </div>
+              )}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -489,9 +543,17 @@ export default function PackagesManagement() {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-xl bg-primary-500 text-white hover:bg-primary-600"
+                  disabled={isSubmitting}
+                  className="px-4 py-2 rounded-xl bg-primary-500 text-white hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {editingPackage ? 'Update Package' : 'Create Package'}
+                  {isSubmitting ? (
+                    <span className="flex items-center gap-2">
+                      <span className="inline-block animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+                      {editingPackage ? 'Updating...' : 'Creating...'}
+                    </span>
+                  ) : (
+                    editingPackage ? 'Update Package' : 'Create Package'
+                  )}
                 </button>
               </div>
             </form>

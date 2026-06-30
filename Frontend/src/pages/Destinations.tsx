@@ -4,11 +4,13 @@ import { Search } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import SectionTitle from '../components/ui/SectionTitle';
 import DestinationCard from '../components/ui/DestinationCard';
-import { destinations } from '../data/destinations';
+import { SkeletonCard } from '../components/ui/LoadingSpinner';
+import { useDestinations } from '../hooks/useDestinations';
 
 export default function Destinations() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedState, setSelectedState] = useState('All');
+  const { destinations, loading, error } = useDestinations();
 
   const states = ['All', ...new Set(destinations.map((d) => d.state))];
 
@@ -96,18 +98,37 @@ export default function Destinations() {
           </div>
 
           {/* Destinations Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filteredDestinations.map((dest, index) => (
-              <DestinationCard key={dest.id} destination={dest} index={index} />
-            ))}
-          </div>
-
-          {filteredDestinations.length === 0 && (
+          {loading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {Array.from({ length: 8 }).map((_, index) => (
+                <SkeletonCard key={index} />
+              ))}
+            </div>
+          ) : error ? (
             <div className="text-center py-16">
-              <p className="text-xl text-gray-500 dark:text-gray-400">
-                No destinations found.
+              <p className="text-xl text-red-500 dark:text-red-400 mb-2">
+                Error loading destinations
+              </p>
+              <p className="text-gray-500 dark:text-gray-400">
+                {error}
               </p>
             </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {filteredDestinations.map((dest, index) => (
+                  <DestinationCard key={dest.id} destination={dest} index={index} />
+                ))}
+              </div>
+
+              {filteredDestinations.length === 0 && (
+                <div className="text-center py-16">
+                  <p className="text-xl text-gray-500 dark:text-gray-400">
+                    No destinations found.
+                  </p>
+                </div>
+              )}
+            </>
           )}
         </div>
       </section>

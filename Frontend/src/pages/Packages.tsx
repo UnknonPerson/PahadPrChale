@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Search, Filter, Grid, List } from 'lucide-react';
+import { Search, ListFilter as Filter, Grid2x2 as Grid, List } from 'lucide-react';
 import PackageCard from '../components/ui/PackageCard';
-import { packages } from '../data/packages';
+import { usePackages } from '../hooks/usePackages';
+import { SkeletonCard } from '../components/ui/LoadingSpinner';
 
 const categories = ['All', 'Adventure', 'Cultural', 'Nature', 'Pilgrimage'];
 const difficulties = ['All', 'Easy', 'Moderate', 'Challenging'];
@@ -20,6 +21,8 @@ export default function Packages() {
   const [selectedPriceRange, setSelectedPriceRange] = useState(0);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [showFilters, setShowFilters] = useState(false);
+
+  const { packages, loading, error } = usePackages();
 
   const filteredPackages = packages.filter((pkg) => {
     const matchesSearch =
@@ -172,19 +175,43 @@ export default function Packages() {
             </div>
           </div>
 
-          {/* Results Count */}
-          <div className="flex items-center justify-between mb-6">
-            <p className="text-gray-600 dark:text-gray-400">
-              Showing{' '}
-              <span className="font-semibold text-gray-900 dark:text-white">
-                {filteredPackages.length}
-              </span>{' '}
-              packages
-            </p>
-          </div>
+          {/* Error State */}
+          {error && (
+            <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl">
+              <p className="text-red-700 dark:text-red-400">
+                {error}
+              </p>
+            </div>
+          )}
 
-          {/* Package Grid */}
-          {filteredPackages.length > 0 ? (
+          {/* Results Count */}
+          {!loading && (
+            <div className="flex items-center justify-between mb-6">
+              <p className="text-gray-600 dark:text-gray-400">
+                Showing{' '}
+                <span className="font-semibold text-gray-900 dark:text-white">
+                  {filteredPackages.length}
+                </span>{' '}
+                packages
+              </p>
+            </div>
+          )}
+
+          {/* Loading State */}
+          {loading ? (
+            <div
+              className={
+                viewMode === 'grid'
+                  ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8'
+                  : 'space-y-6'
+              }
+            >
+              {Array.from({ length: 6 }).map((_, index) => (
+                <SkeletonCard key={index} />
+              ))}
+            </div>
+          ) : filteredPackages.length > 0 ? (
+            /* Package Grid */
             <div
               className={
                 viewMode === 'grid'

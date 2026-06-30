@@ -1,20 +1,29 @@
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Users, Fuel, Settings, Shield, MapPin, Star, Phone, Mail, Check } from 'lucide-react';
-import { useState } from 'react';
-import { vehicles } from '../data/vehicles';
+import { useVehicle } from '../hooks/useVehicles';
+import { PageLoader } from '../components/ui/LoadingSpinner';
 
 export default function VehicleDetail() {
   const { id } = useParams<{ id: string }>();
-  const vehicle = vehicles.find(v => v.id === id);
+  const { vehicle, loading, error } = useVehicle(id);
 
-  if (!vehicle) {
+  if (loading) {
+    return <PageLoader />;
+  }
+
+  if (error || !vehicle) {
     return (
       <div className="min-h-screen pt-32 flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-surface-900 dark:text-white mb-4">
-            Vehicle not found
+            {error ? 'Error loading vehicle' : 'Vehicle not found'}
           </h1>
+          {error && (
+            <p className="text-surface-600 dark:text-surface-400 mb-6">
+              {error}
+            </p>
+          )}
           <Link to="/vehicles">
             <button className="btn-primary">Back to Vehicles</button>
           </Link>

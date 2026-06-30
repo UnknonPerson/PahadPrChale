@@ -1,16 +1,21 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Search, CreditCard as Edit2, Trash2, MapPin, Star, Thermometer, Mountain, X, Upload } from 'lucide-react';
-import { destinations as initialDestinations, type Destination } from '../../data/destinations';
+import { Plus, Search, CreditCard as Edit2, Trash2, MapPin, Star, Thermometer, Mountain, X, Upload, Loader } from 'lucide-react';
+import { type Destination } from '../../data/destinations';
+import { useDestinations, useDestinationActions } from '../../hooks/useDestinations';
 
 const states = ['All', 'West Bengal', 'Sikkim', 'Meghalaya', 'Assam', 'Arunachal Pradesh'];
 
 export default function DestinationsManagement() {
+  const { destinations, loading, error, refetch } = useDestinations();
+  const { create, update, remove } = useDestinationActions();
+
   const [searchQuery, setSearchQuery] = useState('');
   const [stateFilter, setStateFilter] = useState('All');
-  const [destinationsList, setDestinationsList] = useState<Destination[]>(initialDestinations);
   const [showForm, setShowForm] = useState(false);
   const [editingDestination, setEditingDestination] = useState<Destination | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     state: 'West Bengal',
@@ -26,7 +31,7 @@ export default function DestinationsManagement() {
     reviewCount: 0,
   });
 
-  const filteredDestinations = destinationsList.filter((dest) => {
+  const filteredDestinations = destinations.filter((dest) => {
     const matchesSearch =
       dest.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       dest.state.toLowerCase().includes(searchQuery.toLowerCase());
@@ -61,29 +66,47 @@ export default function DestinationsManagement() {
     setShowForm(true);
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm('Are you sure you want to delete this destination?')) {
-      setDestinationsList((prev) => prev.filter((d) => d.id !== id));
+      try {
+        setIsSubmitting(true);
+        setSubmitError(null);
+        await remove(id);
+        await refetch();
+      } catch (err) {
+        setSubmitError(err instanceof Error ? err.message : 'Failed to delete destination');
+      } finally {
+        setIsSubmitting(false);
+      }
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const newDestination: Destination = {
-      ...formData,
-      id: editingDestination?.id || `dest-${Date.now()}`,
-      highlights: formData.highlights.split(',').map((h) => h.trim()).filter(Boolean),
-      gallery: formData.gallery.length > 0 ? formData.gallery : [formData.image, formData.image, formData.image],
-    };
+    try {
+      setIsSubmitting(true);
+      setSubmitError(null);
 
-    if (editingDestination) {
-      setDestinationsList((prev) => prev.map((d) => (d.id === editingDestination.id ? newDestination : d)));
-    } else {
-      setDestinationsList((prev) => [...prev, newDestination]);
+      const destinationData = {
+        ...formData,
+        highlights: formData.highlights.split(',').map((h) => h.trim()).filter(Boolean),
+        gallery: formData.gallery.length > 0 ? formData.gallery : [formData.image, formData.image, formData.image],
+      };
+
+      if (editingDestination) {
+        await update(editingDestination.id, destinationData);
+      } else {
+        await create(destinationData);
+      }
+
+      await refetch();
+      setShowForm(false);
+      resetForm();
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : 'Failed to save destination');
+    } finally {
+      setIsSubmitting(false);
     }
-
-    setShowForm(false);
-    resetForm();
   };
 
   return (
@@ -136,7 +159,27 @@ export default function DestinationsManagement() {
         </div>
       </div>
 
+      {/* Error Message */}
+      {(error || submitError) && (
+        <div className="glass-card p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl">
+          <p className="text-red-700 dark:text-red-300">
+            {submitError || error}
+          </p>
+        </div>
+      )}
+
+      {/* Loading State */}
+      {loading && (
+        <div className="flex items-center justify-center py-12">
+          <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
+            <Loader className="w-5 h-5 animate-spin" />
+            <span>Loading destinations...</span>
+          </div>
+        </div>
+      )}
+
       {/* Destinations Grid */}
+      {!loading && (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {filteredDestinations.map((dest, index) => (
           <motion.div
@@ -206,12 +249,12 @@ export default function DestinationsManagement() {
             </div>
           </motion.div>
         ))}
+        {filteredDestinations.length === 0 && (
+          <div className="text-center py-12 text-gray-500">
+            No destinations found
+          </div>
+        )}
       </div>
-
-      {filteredDestinations.length === 0 && (
-        <div className="text-center py-12 text-gray-500">
-          No destinations found
-        </div>
       )}
 
       {/* Add/Edit Form Modal */}
@@ -240,6 +283,11 @@ export default function DestinationsManagement() {
             </div>
 
             <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+              {submitError && (
+                <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-300 text-sm">
+                  {submitError}
+                </div>
+              )}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -386,9 +434,17 @@ export default function DestinationsManagement() {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-xl bg-primary-500 text-white hover:bg-primary-600"
+                  disabled={isSubmitting}
+                  className="px-4 py-2 rounded-xl bg-primary-500 text-white hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                 >
-                  {editingDestination ? 'Update Destination' : 'Create Destination'}
+                  {isSubmitting ? (
+                    <>
+                      <Loader className="w-4 h-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    editingDestination ? 'Update Destination' : 'Create Destination'
+                  )}
                 </button>
               </div>
             </form>

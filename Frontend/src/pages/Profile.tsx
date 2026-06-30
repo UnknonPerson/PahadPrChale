@@ -7,6 +7,7 @@ import { useWishlist } from '../context/WishlistContext';
 import { Link, useNavigate } from 'react-router-dom';
 import { PageLoader, ButtonLoader } from '../components/ui/LoadingSpinner';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
+import authService from '../services/authService';
 
 type TabType = 'profile' | 'security' | 'notifications' | 'danger';
 
@@ -63,7 +64,12 @@ export default function Profile() {
     e.preventDefault();
     setLoading(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await authService.updateProfile({
+        name: formData.name,
+        phone: formData.phone,
+        address: formData.address,
+        bio: formData.bio,
+      });
       success('Profile updated successfully');
     } catch (err) {
       error('Failed to update profile');
@@ -80,7 +86,7 @@ export default function Profile() {
     }
     setLoading(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await authService.changePassword(passwordData.currentPassword, passwordData.newPassword);
       success('Password changed successfully');
       setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
     } catch (err) {
@@ -105,7 +111,7 @@ export default function Profile() {
   const handleDeleteAccount = async () => {
     setLoading(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await authService.deleteAccount();
       success('Account deleted successfully');
       logout();
       navigate('/');

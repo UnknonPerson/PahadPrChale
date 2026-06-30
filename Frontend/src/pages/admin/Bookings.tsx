@@ -1,15 +1,24 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Search, ListFilter as Filter, Eye, Check, X, Trash2, CalendarCheck, Download } from 'lucide-react';
-import { bookings, type Booking } from '../../data/adminData';
+import { useAllBookings, useBookingActions } from '../../hooks/useBookings';
+import type { Booking } from '../../data/adminData';
 
 const statusFilters = ['All', 'pending', 'confirmed', 'completed', 'cancelled'];
 
 export default function Bookings() {
+  const { bookings: apiBookings, loading, error, refetch } = useAllBookings();
+  const { cancel, remove } = useBookingActions();
+
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
-  const [bookingsList, setBookingsList] = useState<Booking[]>(bookings);
+  const [bookingsList, setBookingsList] = useState<Booking[]>(apiBookings);
+
+  // Update bookingsList when API data changes
+  useEffect(() => {
+    setBookingsList(apiBookings);
+  }, [apiBookings]);
 
   const filteredBookings = bookingsList.filter((booking) => {
     const matchesSearch =
@@ -35,19 +44,47 @@ export default function Bookings() {
     }
   };
 
-  const handleStatusChange = (bookingId: string, newStatus: Booking['status']) => {
-    setBookingsList((prev) =>
-      prev.map((b) => (b.id === bookingId ? { ...b, status: newStatus } : b))
-    );
-    if (selectedBooking?.id === bookingId) {
-      setSelectedBooking({ ...selectedBooking, status: newStatus });
+  const handleStatusChange = async (bookingId: string, newStatus: Booking['status']) => {
+    try {
+      // Optimistic update
+      setBookingsList((prev) =>
+        prev.map((b) => (b.id === bookingId ? { ...b, status: newStatus } : b))
+      );
+      if (selectedBooking?.id === bookingId) {
+        setSelectedBooking({ ...selectedBooking, status: newStatus });
+      }
+
+      // Call API to update status
+      if (newStatus === 'cancelled') {
+        await cancel(bookingId);
+      }
+
+      // Refetch to ensure consistency
+      await refetch();
+    } catch (err) {
+      console.error('Failed to update booking status:', err);
+      // Revert on error
+      await refetch();
     }
   };
 
-  const handleDelete = (bookingId: string) => {
+  const handleDelete = async (bookingId: string) => {
     if (confirm('Are you sure you want to delete this booking?')) {
-      setBookingsList((prev) => prev.filter((b) => b.id !== bookingId));
-      setSelectedBooking(null);
+      try {
+        // Optimistic update
+        setBookingsList((prev) => prev.filter((b) => b.id !== bookingId));
+        setSelectedBooking(null);
+
+        // Call API to delete
+        await remove(bookingId);
+
+        // Refetch to ensure consistency
+        await refetch();
+      } catch (err) {
+        console.error('Failed to delete booking:', err);
+        // Revert on error
+        await refetch();
+      }
     }
   };
 
@@ -67,6 +104,21 @@ export default function Bookings() {
           Export
         </button>
       </div>
+
+      {/* Loading and Error States */}
+      {loading && (
+        <div className="glass-card p-4 text-center">
+          <p className="text-gray-600 dark:text-gray-400">Loading bookings...</p>
+        </div>
+      )}
+
+      {error && (
+        <div className="glass-card p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl">
+          <p className="text-red-700 dark:text-red-400">
+            Error loading bookings: {error}. Showing fallback data.
+          </p>
+        </div>
+      )}
 
       {/* Search and Filter */}
       <div className="glass-card p-4">

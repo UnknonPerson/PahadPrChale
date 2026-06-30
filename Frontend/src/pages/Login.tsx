@@ -13,7 +13,7 @@ export default function Login() {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const { login } = useAuth();
+  const { login, isAdmin } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -36,16 +36,16 @@ export default function Login() {
       return;
     }
 
-    const success = await login(email, password);
+    const result = await login(email, password);
 
-    if (success) {
-      if (email === 'admin@pahadperchale.com') {
+    if (result.success) {
+      if (isAdmin) {
         navigate('/admin');
       } else {
         navigate(from, { replace: true });
       }
     } else {
-      setError('Invalid email or password');
+      setError(result.message || 'Invalid email or password');
     }
 
     setIsLoading(false);
@@ -184,14 +184,6 @@ export default function Login() {
                     Create Account
                   </Link>
                 </p>
-              </div>
-            </div>
-
-            <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-900 rounded-xl">
-              <p className="text-xs text-gray-500 dark:text-gray-400 text-center mb-2">Demo Credentials</p>
-              <div className="text-xs text-gray-600 dark:text-gray-300 space-y-1">
-                <p><strong>Admin:</strong> admin@pahadperchale.com / admin123</p>
-                <p><strong>User:</strong> Any email with 6+ char password</p>
               </div>
             </div>
           </div>

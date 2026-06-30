@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Search,
   Mail,
@@ -10,12 +10,50 @@ import {
   Trash2,
   ChevronRight,
 } from 'lucide-react';
-import { messages as initialMessages, type Message } from '../../data/adminData';
+import { fallbackMessages, type Message } from '../../data/adminData';
 
 export default function Messages() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
-  const [messagesList, setMessagesList] = useState<Message[]>(initialMessages);
+  const [messagesList, setMessagesList] = useState<Message[]>(fallbackMessages);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchMessages = async () => {
+      try {
+        setLoading(true);
+        // Try to fetch from API endpoint
+        const response = await fetch('/api/messages', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          // Ensure data is an array, handle both direct array and data wrapper
+          const messagesData = Array.isArray(data) ? data : data.messages || data.data || [];
+          if (messagesData.length > 0) {
+            setMessagesList(messagesData);
+          } else {
+            setMessagesList(fallbackMessages);
+          }
+        } else {
+          // API endpoint doesn't exist or failed, use fallback
+          setMessagesList(fallbackMessages);
+        }
+      } catch (error) {
+        // Network error or API unavailable, use fallback
+        console.error('Failed to fetch messages:', error);
+        setMessagesList(fallbackMessages);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchMessages();
+  }, []);
 
   const filteredMessages = messagesList.filter(
     (msg) =>
@@ -126,7 +164,13 @@ export default function Messages() {
           </div>
 
           <div className="divide-y divide-gray-200 dark:divide-gray-700 max-h-[500px] overflow-y-auto">
-            {filteredMessages.map((message) => (
+            {loading && (
+              <div className="py-8 text-center text-gray-500">
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"></div>
+                <p className="mt-2">Loading messages...</p>
+              </div>
+            )}
+            {!loading && filteredMessages.map((message) => (
               <button
                 key={message.id}
                 onClick={() => setSelectedMessage(message)}
@@ -157,7 +201,7 @@ export default function Messages() {
               </button>
             ))}
 
-            {filteredMessages.length === 0 && (
+            {!loading && filteredMessages.length === 0 && (
               <div className="py-8 text-center text-gray-500">
                 No messages found
               </div>

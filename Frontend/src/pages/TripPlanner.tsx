@@ -3,9 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { MapPin, Calendar, Users, Hotel, Car, Calculator, Plus, Trash2, CircleCheck as CheckCircle } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
-import { destinations } from '../data/destinations';
-import { hotels } from '../data/hotels';
-import { vehicles } from '../data/vehicles';
+import { useDestinations } from '../hooks/useDestinations';
+import { useHotels } from '../hooks/useHotels';
+import { useVehicles } from '../hooks/useVehicles';
+import { useTripActions } from '../hooks/useTrips';
 import Button from '../components/ui/Button';
 
 interface DestinationStop {
@@ -16,6 +17,10 @@ interface DestinationStop {
 export default function TripPlanner() {
   const { success, error } = useToast();
   const navigate = useNavigate();
+  const { destinations } = useDestinations();
+  const { hotels } = useHotels();
+  const { vehicles } = useVehicles();
+  const { submitTripPlanner } = useTripActions();
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -90,7 +95,10 @@ export default function TripPlanner() {
 
     setIsSubmitting(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      await submitTripPlanner({
+        ...tripData,
+        destinations: tripData.destinations.filter(d => d.destination),
+      });
       success('Trip request submitted successfully! Our team will contact you within 24 hours.');
       setStep(4);
     } catch (err) {
