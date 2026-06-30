@@ -6,16 +6,17 @@ export interface Vehicle {
   pricePerDay: number;
   pricePerKm?: number;
   image: string;
-  gallery: string[];
+  gallery?: string[];
   features: string[];
   rating: number;
-  reviewCount: number;
+  reviewCount?: number;
   description: string;
   destinations: string[];
   bestFor: string[];
 }
 
-export const vehicles: Vehicle[] = [
+// Fallback vehicle when API fails or database is empty
+export const fallbackVehicles: Vehicle[] = [
   {
     id: 'vehicle-1',
     name: 'Toyota Innova Crysta',
@@ -32,115 +33,7 @@ export const vehicles: Vehicle[] = [
     destinations: ['All Destinations'],
     bestFor: ['Family Trips', 'Group Tours', 'Mountain Roads'],
   },
-  {
-    id: 'vehicle-2',
-    name: 'Maruti Swift Desire',
-    type: 'Sedan',
-    seats: 4,
-    pricePerDay: 2800,
-    pricePerKm: 12,
-    image: 'https://images.pexels.com/photos/170811/pexels-photo-170811.jpeg?auto=compress&cs=tinysrgb&w=800',
-    gallery: [],
-    features: ['Air Conditioned', 'Music System', 'Comfortable Seats', 'Good Mileage'],
-    rating: 4.5,
-    reviewCount: 256,
-    description: 'Budget-friendly sedan ideal for couples and small families with reliable performance.',
-    destinations: ['Darjeeling', 'Gangtok', 'Shillong'],
-    bestFor: ['Solo Travel', 'Couples', 'Small Families'],
-  },
-  {
-    id: 'vehicle-3',
-    name: 'Force Tempo Traveller',
-    type: 'Tempo Traveller',
-    seats: 12,
-    pricePerDay: 7500,
-    pricePerKm: 22,
-    image: 'https://images.pexels.com/photos/163336/pexels-photo-163336.jpeg?auto=compress&cs=tinysrgb&w=800',
-    gallery: [],
-    features: ['Air Conditioned', 'Push-back Seats', 'LCD Screen', 'Mineral Water', 'First Aid Kit', 'Ample Luggage Space'],
-    rating: 4.6,
-    reviewCount: 189,
-    description: 'Spacious tempo traveller perfect for large groups with all modern amenities.',
-    destinations: ['All Destinations'],
-    bestFor: ['Large Groups', 'Corporate Tours', 'Family Gatherings'],
-  },
-  {
-    id: 'vehicle-4',
-    name: 'Tata Safari',
-    type: 'SUV',
-    seats: 6,
-    pricePerDay: 5200,
-    pricePerKm: 16,
-    image: 'https://images.pexels.com/photos/356948/pexels-photo-356948.jpeg?auto=compress&cs=tinysrgb&w=800',
-    gallery: [],
-    features: ['Air Conditioned', 'Sunroof', 'Leather Seats', 'Premium Audio', 'GPS Navigation'],
-    rating: 4.6,
-    reviewCount: 198,
-    description: 'Premium SUV with excellent ground clearance for comfortable mountain journeys.',
-    destinations: ['All Destinations'],
-    bestFor: ['Luxury Travel', 'Mountain Roads', 'Family Trips'],
-  },
-  {
-    id: 'vehicle-5',
-    name: 'Hyundai Xcent',
-    type: 'Sedan',
-    seats: 4,
-    pricePerDay: 2500,
-    pricePerKm: 10,
-    image: 'https://images.pexels.com/photos/210182/pexels-photo-210182.jpeg?auto=compress&cs=tinysrgb&w=800',
-    gallery: [],
-    features: ['Air Conditioned', 'Entertainment System', 'Comfortable Ride', 'Efficient'],
-    rating: 4.3,
-    reviewCount: 156,
-    description: 'Compact sedan ideal for city tours and short distance travel.',
-    destinations: ['Darjeeling', 'Gangtok', 'Kalimpong'],
-    bestFor: ['City Tours', 'Short Trips', 'Budget Travel'],
-  },
-  {
-    id: 'vehicle-6',
-    name: 'Mahindra Xylo',
-    type: 'SUV',
-    seats: 7,
-    pricePerDay: 3800,
-    pricePerKm: 14,
-    image: 'https://images.pexels.com/photos/1149848/pexels-photo-1149848.jpeg?auto=compress&cs=tinysrgb&w=800',
-    gallery: [],
-    features: ['Air Conditioned', 'Spacious Interior', 'Good Luggage Space', 'Comfortable Ride'],
-    rating: 4.4,
-    reviewCount: 234,
-    description: 'Reliable MUV with excellent space and comfort for medium groups.',
-    destinations: ['All Destinations'],
-    bestFor: ['Family Trips', 'Group Tours', 'Long Distance'],
-  },
-  {
-    id: 'vehicle-7',
-    name: 'Royal Enfield Himalayan',
-    type: 'Motorcycle',
-    seats: 2,
-    pricePerDay: 2500,
-    image: 'https://images.pexels.com/photos/104842/bmw-motor-bike-traffic-104842.jpeg?auto=compress&cs=tinysrgb&w=800',
-    gallery: [],
-    features: ['Adventure Ready', 'High Ground Clearance', 'Comfortable Ergonomics', 'Powerful Engine'],
-    rating: 4.7,
-    reviewCount: 87,
-    description: 'Adventure motorcycle perfect for exploring off-beat trails in Northeast India.',
-    destinations: ['Sikkim', 'Meghalaya', 'Arunachal Pradesh'],
-    bestFor: ['Adventure Tours', 'Solo Travel', 'Experienced Riders'],
-  },
-  {
-    id: 'vehicle-8',
-    name: 'Volvo Multi-Axle Bus',
-    type: 'Minibus',
-    seats: 20,
-    pricePerDay: 18000,
-    pricePerKm: 35,
-    image: 'https://images.pexels.com/photos/267507/pexels-photo-267507.jpeg?auto=compress&cs=tinysrgb&w=800',
-    gallery: [],
-    features: ['Fully Air Conditioned', 'Recliner Seats', 'LCD Screens', 'USB Charging', 'Reading Lights', 'Onboard Washroom'],
-    rating: 4.5,
-    reviewCount: 45,
-    description: 'Luxury coach for large groups with all modern amenities for comfortable long journeys.',
-    destinations: ['All Destinations'],
-    bestFor: ['Large Groups', 'Corporate Events', 'Weddings'],
-  },
 ];
+
+// Keep for backward compatibility
+export const vehicles = fallbackVehicles;

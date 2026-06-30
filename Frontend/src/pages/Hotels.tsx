@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Search, ListFilter as Filter, Grid2x2 as Grid, List, MapPin, Star, Wifi, Car, Coffee, Dumbbell, Save as Waves } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import SectionTitle from '../components/ui/SectionTitle';
-import { hotels } from '../data/hotels';
+import { useHotels } from '../hooks/useHotels';
 
 const categories = ['All', 'Budget', 'Standard', 'Deluxe', 'Luxury'];
 const amenities = [
@@ -15,6 +15,7 @@ const amenities = [
 ];
 
 export default function Hotels() {
+  const { hotels, loading, error } = useHotels();
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [destinationFilter, setDestinationFilter] = useState('All');
@@ -197,8 +198,50 @@ export default function Hotels() {
             )}
           </div>
 
+          {/* Error Message */}
+          {error && (
+            <div className="mb-8 p-4 bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-800 rounded-xl">
+              <p className="text-red-700 dark:text-red-400 font-medium">Error loading hotels: {error}</p>
+            </div>
+          )}
+
           {/* Hotels Grid/List */}
-          {filteredHotels.length > 0 ? (
+          {loading ? (
+            <div className={
+              viewMode === 'grid'
+                ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'
+                : 'space-y-6'
+            }>
+              {[1, 2, 3, 4, 5, 6].map((_, index) => (
+                <div key={index} className={`${viewMode === 'list' ? 'bg-white dark:bg-surface-900 rounded-2xl border border-surface-200 dark:border-surface-800 overflow-hidden' : ''}`}>
+                  {viewMode === 'grid' ? (
+                    <div className="bg-white dark:bg-surface-900 rounded-2xl border border-surface-200 dark:border-surface-800 overflow-hidden">
+                      <div className="h-56 bg-surface-200 dark:bg-surface-800 animate-pulse" />
+                      <div className="p-5">
+                        <div className="h-6 bg-surface-200 dark:bg-surface-800 rounded animate-pulse mb-3 w-3/4" />
+                        <div className="h-4 bg-surface-200 dark:bg-surface-800 rounded animate-pulse mb-4" />
+                        <div className="flex gap-2 mb-4">
+                          <div className="h-6 bg-surface-200 dark:bg-surface-800 rounded-lg animate-pulse w-20" />
+                          <div className="h-6 bg-surface-200 dark:bg-surface-800 rounded-lg animate-pulse w-20" />
+                        </div>
+                        <div className="h-10 bg-surface-200 dark:bg-surface-800 rounded-lg animate-pulse" />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col md:flex-row gap-6 p-6">
+                      <div className="w-full md:w-64 h-48 bg-surface-200 dark:bg-surface-800 rounded-xl animate-pulse flex-shrink-0" />
+                      <div className="flex-1 space-y-3">
+                        <div className="h-6 bg-surface-200 dark:bg-surface-800 rounded animate-pulse w-2/3" />
+                        <div className="h-4 bg-surface-200 dark:bg-surface-800 rounded animate-pulse" />
+                        <div className="h-4 bg-surface-200 dark:bg-surface-800 rounded animate-pulse w-4/5" />
+                        <div className="h-10 bg-surface-200 dark:bg-surface-800 rounded-lg animate-pulse w-32 mt-4" />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : filteredHotels.length > 0 ? (
             <div className={
               viewMode === 'grid'
                 ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'

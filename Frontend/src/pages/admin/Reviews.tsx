@@ -1,12 +1,34 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Search, ListFilter as Filter, Star, Check, X, Trash2, MessageSquare } from 'lucide-react';
-import { reviews as initialReviews, type Review } from '../../data/adminData';
+import { fallbackReviews, type Review } from '../../data/adminData';
 
 export default function Reviews() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
-  const [reviewsList, setReviewsList] = useState<Review[]>(initialReviews);
+  const [reviewsList, setReviewsList] = useState<Review[]>(fallbackReviews);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchReviews = async () => {
+      try {
+        const response = await fetch('/api/reviews');
+        if (response.ok) {
+          const data = await response.json();
+          setReviewsList(data);
+        } else {
+          setReviewsList(fallbackReviews);
+        }
+      } catch (error) {
+        console.error('Failed to fetch reviews:', error);
+        setReviewsList(fallbackReviews);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchReviews();
+  }, []);
 
   const filteredReviews = reviewsList.filter((review) => {
     const matchesSearch =

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Search, CreditCard as Edit2, Trash2, Star, Users, X, Upload, Fuel } from 'lucide-react';
-import { vehicles as initialVehicles } from '../../data/vehicles';
+import { Plus, Search, CreditCard as Edit2, Trash2, Star, Users, X, Upload, Fuel, CircleAlert as AlertCircle, Loader } from 'lucide-react';
+import { useVehicles, useVehicleActions } from '../../hooks/useVehicles';
 import type { Vehicle } from '../../data/vehicles';
 
 const vehicleTypes = ['All', 'Sedan', 'SUV', 'Tempo Traveller', 'Minibus', 'Motorcycle'];
@@ -9,9 +9,10 @@ const vehicleTypes = ['All', 'Sedan', 'SUV', 'Tempo Traveller', 'Minibus', 'Moto
 export default function VehiclesManagement() {
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('All');
-  const [vehiclesList, setVehiclesList] = useState<Vehicle[]>(initialVehicles);
   const [showForm, setShowForm] = useState(false);
   const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     type: 'Sedan' as Vehicle['type'],
@@ -26,7 +27,11 @@ export default function VehiclesManagement() {
     image: 'https://images.pexels.com/photos/1209398/pexels-photo-1209398.jpeg?auto=compress&cs=tinysrgb&w=800',
   });
 
-  const filteredVehicles = vehiclesList.filter((vehicle) => {
+  // Fetch vehicles from API
+  const { vehicles, loading, error, refetch } = useVehicles();
+  const { create, update, remove } = useVehicleActions();
+
+  const filteredVehicles = vehicles.filter((vehicle) => {
     const matchesSearch =
       vehicle.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       vehicle.type.toLowerCase().includes(searchQuery.toLowerCase());
@@ -79,30 +84,48 @@ export default function VehiclesManagement() {
     setShowForm(true);
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm('Are you sure you want to delete this vehicle?')) {
-      setVehiclesList((prev) => prev.filter((v) => v.id !== id));
+      try {
+        setIsSubmitting(true);
+        setSubmitError(null);
+        await remove(id);
+        await refetch();
+      } catch (err) {
+        setSubmitError(err instanceof Error ? err.message : 'Failed to delete vehicle');
+      } finally {
+        setIsSubmitting(false);
+      }
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const newVehicle: Vehicle = {
-      ...formData,
-      id: editingVehicle?.id || `vehicle-${Date.now()}`,
-      features: formData.features.split(',').map((f) => f.trim()).filter(Boolean),
-      destinations: formData.destinations.split(',').map((d) => d.trim()).filter(Boolean),
-      bestFor: formData.bestFor.split(',').map((b) => b.trim()).filter(Boolean),
-    };
+    try {
+      setIsSubmitting(true);
+      setSubmitError(null);
 
-    if (editingVehicle) {
-      setVehiclesList((prev) => prev.map((v) => (v.id === editingVehicle.id ? newVehicle : v)));
-    } else {
-      setVehiclesList((prev) => [...prev, newVehicle]);
+      const vehicleData = {
+        ...formData,
+        features: formData.features.split(',').map((f) => f.trim()).filter(Boolean),
+        destinations: formData.destinations.split(',').map((d) => d.trim()).filter(Boolean),
+        bestFor: formData.bestFor.split(',').map((b) => b.trim()).filter(Boolean),
+      };
+
+      if (editingVehicle) {
+        await update(editingVehicle.id, vehicleData);
+      } else {
+        await create(vehicleData);
+      }
+
+      await refetch();
+      setShowForm(false);
+      resetForm();
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : 'Failed to save vehicle');
+    } finally {
+      setIsSubmitting(false);
     }
-
-    setShowForm(false);
-    resetForm();
   };
 
   return (
@@ -121,12 +144,34 @@ export default function VehiclesManagement() {
             resetForm();
             setShowForm(true);
           }}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary-500 text-white hover:bg-primary-600 transition-colors"
+          disabled={loading || isSubmitting}
+          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary-500 text-white hover:bg-primary-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Plus className="w-4 h-4" />
           Add Vehicle
         </button>
       </div>
+
+      {/* Error Messages */}
+      {error && (
+        <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl flex items-gap-3">
+          <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+          <div>
+            <h3 className="text-sm font-medium text-red-900 dark:text-red-200">Failed to load vehicles</h3>
+            <p className="text-sm text-red-700 dark:text-red-300 mt-1">{error}</p>
+          </div>
+        </div>
+      )}
+
+      {submitError && (
+        <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl flex items-gap-3">
+          <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+          <div>
+            <h3 className="text-sm font-medium text-red-900 dark:text-red-200">Operation failed</h3>
+            <p className="text-sm text-red-700 dark:text-red-300 mt-1">{submitError}</p>
+          </div>
+        </div>
+      )}
 
       {/* Search and Filter */}
       <div className="glass-card p-4">
@@ -155,7 +200,16 @@ export default function VehiclesManagement() {
         </div>
       </div>
 
+      {/* Loading State */}
+      {loading && (
+        <div className="flex items-center justify-center py-12">
+          <Loader className="w-8 h-8 text-primary-500 animate-spin" />
+          <span className="ml-3 text-gray-600 dark:text-gray-400">Loading vehicles...</span>
+        </div>
+      )}
+
       {/* Vehicles Grid */}
+      {!loading && (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredVehicles.map((vehicle, index) => (
           <motion.div
@@ -208,13 +262,15 @@ export default function VehiclesManagement() {
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => handleEdit(vehicle)}
-                    className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 hover:text-primary-500"
+                    disabled={loading || isSubmitting}
+                    className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 hover:text-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Edit2 className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => handleDelete(vehicle.id)}
-                    className="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-gray-500 hover:text-red-500"
+                    disabled={loading || isSubmitting}
+                    className="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-gray-500 hover:text-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -223,12 +279,12 @@ export default function VehiclesManagement() {
             </div>
           </motion.div>
         ))}
+        {filteredVehicles.length === 0 && (
+          <div className="text-center py-12 text-gray-500">
+            No vehicles found
+          </div>
+        )}
       </div>
-
-      {filteredVehicles.length === 0 && (
-        <div className="text-center py-12 text-gray-500">
-          No vehicles found
-        </div>
       )}
 
       {/* Add/Edit Form Modal */}
@@ -257,6 +313,12 @@ export default function VehiclesManagement() {
             </div>
 
             <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+              {submitError && (
+                <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-gap-2">
+                  <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-red-700 dark:text-red-300">{submitError}</p>
+                </div>
+              )}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -411,14 +473,17 @@ export default function VehiclesManagement() {
                     setShowForm(false);
                     resetForm();
                   }}
-                  className="px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                  disabled={isSubmitting}
+                  className="px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-xl bg-primary-500 text-white hover:bg-primary-600"
+                  disabled={isSubmitting}
+                  className="px-4 py-2 rounded-xl bg-primary-500 text-white hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                 >
+                  {isSubmitting && <Loader className="w-4 h-4 animate-spin" />}
                   {editingVehicle ? 'Update Vehicle' : 'Create Vehicle'}
                 </button>
               </div>

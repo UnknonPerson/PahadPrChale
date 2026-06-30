@@ -4,7 +4,8 @@ import { ArrowLeft, MapPin, Star, Wifi, Car, Coffee, Dumbbell, Save as Waves, He
 import { useState } from 'react';
 import { useWishlist } from '../context/WishlistContext';
 import { useToast } from '../context/ToastContext';
-import { hotels } from '../data/hotels';
+import { useHotel } from '../hooks/useHotels';
+import { PageLoader } from '../components/ui/LoadingSpinner';
 
 const amenityIcons: Record<string, React.ElementType> = {
   'Free WiFi': Wifi,
@@ -17,17 +18,21 @@ const amenityIcons: Record<string, React.ElementType> = {
 
 export default function HotelDetail() {
   const { id } = useParams<{ id: string }>();
-  const hotel = hotels.find(h => h.id === id);
+  const { hotel, loading, error } = useHotel(id);
   const { addItem, removeItem, isInWishlist } = useWishlist();
   const { success } = useToast();
   const [selectedImage, setSelectedImage] = useState(0);
 
-  if (!hotel) {
+  if (loading) {
+    return <PageLoader />;
+  }
+
+  if (error || !hotel) {
     return (
       <div className="min-h-screen pt-32 flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-surface-900 dark:text-white mb-4">
-            Hotel not found
+            {error ? `Error: ${error}` : 'Hotel not found'}
           </h1>
           <Link to="/hotels">
             <button className="btn-primary">Back to Hotels</button>

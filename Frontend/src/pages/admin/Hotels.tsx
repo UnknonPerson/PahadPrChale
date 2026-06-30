@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Search, CreditCard as Edit2, Trash2, Star, MapPin, X, Upload } from 'lucide-react';
-import { hotels as initialHotels } from '../../data/hotels';
+import { Plus, Search, CreditCard as Edit2, Trash2, Star, MapPin, X, Upload, Loader } from 'lucide-react';
+import { useHotels, useHotelActions } from '../../hooks/useHotels';
 import type { Hotel } from '../../data/hotels';
 
 const categories = ['All', 'Budget', 'Standard', 'Deluxe', 'Luxury'];
@@ -9,9 +9,14 @@ const categories = ['All', 'Budget', 'Standard', 'Deluxe', 'Luxury'];
 export default function HotelsManagement() {
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
-  const [hotelsList, setHotelsList] = useState<Hotel[]>(initialHotels);
   const [showForm, setShowForm] = useState(false);
   const [editingHotel, setEditingHotel] = useState<Hotel | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  const { hotels: hotelsList, loading, error, refetch } = useHotels();
+  const { create, update, remove } = useHotelActions();
+
   const [formData, setFormData] = useState({
     name: '',
     destination: '',
@@ -78,29 +83,46 @@ export default function HotelsManagement() {
     setShowForm(true);
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm('Are you sure you want to delete this hotel?')) {
-      setHotelsList((prev) => prev.filter((h) => h.id !== id));
+      try {
+        setSubmitError(null);
+        await remove(id);
+        await refetch();
+      } catch (err) {
+        console.error('Failed to delete hotel:', err);
+        setSubmitError(err instanceof Error ? err.message : 'Failed to delete hotel');
+      }
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const newHotel: Hotel = {
-      ...formData,
-      id: editingHotel?.id || `hotel-${Date.now()}`,
-      amenities: formData.amenities.split(',').map((a) => a.trim()).filter(Boolean),
-      highlights: formData.highlights.split(',').map((h) => h.trim()).filter(Boolean),
-    };
+    setIsSubmitting(true);
+    setSubmitError(null);
 
-    if (editingHotel) {
-      setHotelsList((prev) => prev.map((h) => (h.id === editingHotel.id ? newHotel : h)));
-    } else {
-      setHotelsList((prev) => [...prev, newHotel]);
+    try {
+      const hotelData = {
+        ...formData,
+        amenities: formData.amenities.split(',').map((a) => a.trim()).filter(Boolean),
+        highlights: formData.highlights.split(',').map((h) => h.trim()).filter(Boolean),
+      };
+
+      if (editingHotel) {
+        await update(editingHotel.id, hotelData);
+      } else {
+        await create(hotelData);
+      }
+
+      await refetch();
+      setShowForm(false);
+      resetForm();
+    } catch (err) {
+      console.error('Failed to save hotel:', err);
+      setSubmitError(err instanceof Error ? err.message : 'Failed to save hotel');
+    } finally {
+      setIsSubmitting(false);
     }
-
-    setShowForm(false);
-    resetForm();
   };
 
   return (
@@ -153,7 +175,35 @@ export default function HotelsManagement() {
         </div>
       </div>
 
+      {/* Error Message */}
+      {error && (
+        <div className="p-4 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
+          <p className="text-red-700 dark:text-red-400">
+            {error}
+          </p>
+        </div>
+      )}
+
+      {submitError && (
+        <div className="p-4 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
+          <p className="text-red-700 dark:text-red-400">
+            {submitError}
+          </p>
+        </div>
+      )}
+
+      {/* Loading State */}
+      {loading && (
+        <div className="flex items-center justify-center py-12">
+          <div className="flex flex-col items-center gap-3">
+            <Loader className="w-8 h-8 text-primary-500 animate-spin" />
+            <p className="text-gray-500 dark:text-gray-400">Loading hotels...</p>
+          </div>
+        </div>
+      )}
+
       {/* Hotels Grid */}
+      {!loading && (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredHotels.map((hotel, index) => (
           <motion.div
@@ -217,12 +267,12 @@ export default function HotelsManagement() {
             </div>
           </motion.div>
         ))}
+        {filteredHotels.length === 0 && (
+          <div className="text-center py-12 text-gray-500">
+            No hotels found
+          </div>
+        )}
       </div>
-
-      {filteredHotels.length === 0 && (
-        <div className="text-center py-12 text-gray-500">
-          No hotels found
-        </div>
       )}
 
       {/* Add/Edit Form Modal */}
@@ -251,6 +301,13 @@ export default function HotelsManagement() {
             </div>
 
             <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+              {submitError && (
+                <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
+                  <p className="text-sm text-red-700 dark:text-red-400">
+                    {submitError}
+                  </p>
+                </div>
+              )}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -397,9 +454,17 @@ export default function HotelsManagement() {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-xl bg-primary-500 text-white hover:bg-primary-600"
+                  disabled={isSubmitting}
+                  className="px-4 py-2 rounded-xl bg-primary-500 text-white hover:bg-primary-600 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
                 >
-                  {editingHotel ? 'Update Hotel' : 'Create Hotel'}
+                  {isSubmitting ? (
+                    <>
+                      <Loader className="w-4 h-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    editingHotel ? 'Update Hotel' : 'Create Hotel'
+                  )}
                 </button>
               </div>
             </form>

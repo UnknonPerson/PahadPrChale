@@ -10,18 +10,23 @@ import {
   ArrowLeft,
 } from 'lucide-react';
 import Button from '../components/ui/Button';
-import { packages } from '../data/packages';
+import { PageLoader } from '../components/ui/LoadingSpinner';
+import { usePackage } from '../hooks/usePackages';
 
 export default function PackageDetail() {
   const { id } = useParams<{ id: string }>();
-  const pkg = packages.find((p) => p.id === id);
+  const { pkg, loading, error } = usePackage(id!);
 
-  if (!pkg) {
+  if (loading) {
+    return <PageLoader />;
+  }
+
+  if (error || !pkg) {
     return (
       <div className="min-h-screen pt-32 flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
-            Package not found
+            {error ? `Error: ${error}` : 'Package not found'}
           </h1>
           <Link to="/packages">
             <Button variant="primary">Back to Packages</Button>

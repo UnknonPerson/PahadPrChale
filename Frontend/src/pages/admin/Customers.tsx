@@ -1,11 +1,55 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Search, ListFilter as Filter, Mail, Phone, Calendar, IndianRupee, Users } from 'lucide-react';
-import { customers } from '../../data/adminData';
+import { fallbackCustomers, type Customer } from '../../data/adminData';
 
 export default function Customers() {
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
+
+  useEffect(() => {
+    const fetchCustomers = async () => {
+      try {
+        setLoading(true);
+        // Try to fetch from API endpoints
+        const endpoints = ['/api/customers', '/api/users'];
+        let data = null;
+
+        for (const endpoint of endpoints) {
+          try {
+            const response = await fetch(endpoint);
+            if (response.ok) {
+              const json = await response.json();
+              // Handle different response formats
+              data = Array.isArray(json) ? json : json.data || json.customers;
+              if (data && Array.isArray(data) && data.length > 0) {
+                break;
+              }
+            }
+          } catch {
+            // Continue to next endpoint
+            continue;
+          }
+        }
+
+        // Use fetched data or fallback
+        if (data && Array.isArray(data)) {
+          setCustomers(data);
+        } else {
+          setCustomers(fallbackCustomers);
+        }
+      } catch (error) {
+        console.warn('Error fetching customers, using fallback data:', error);
+        setCustomers(fallbackCustomers);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCustomers();
+  }, []);
 
   const filteredCustomers = customers.filter((customer) => {
     const matchesSearch =
@@ -105,6 +149,11 @@ export default function Customers() {
 
       {/* Customers Table */}
       <div className="glass-card overflow-hidden">
+        {loading ? (
+          <div className="py-12 text-center text-gray-500">
+            Loading customers...
+          </div>
+        ) : (
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
@@ -188,12 +237,12 @@ export default function Customers() {
               ))}
             </tbody>
           </table>
+          {filteredCustomers.length === 0 && (
+            <div className="py-12 text-center text-gray-500">
+              No customers found
+            </div>
+          )}
         </div>
-
-        {filteredCustomers.length === 0 && (
-          <div className="py-12 text-center text-gray-500">
-            No customers found
-          </div>
         )}
       </div>
     </div>

@@ -1,12 +1,5 @@
 import { motion } from 'framer-motion';
-import {
-  ArrowRight,
-  CheckCircle,
-  Shield,
-  Headphones,
-  Star,
-  Sparkles,
-} from "lucide-react";
+import { ArrowRight, CircleCheck as CheckCircle, Shield, Headphones, Star, Sparkles } from "lucide-react";
 import { Link } from 'react-router-dom';
 import Button from '../components/ui/Button';
 import SectionTitle from '../components/ui/SectionTitle';
@@ -14,9 +7,10 @@ import DestinationCard from '../components/ui/DestinationCard';
 import PackageCard from '../components/ui/PackageCard';
 import TestimonialCard from '../components/ui/TestimonialCard';
 import SearchBar from '../components/ui/SearchBar';
-import { destinations } from '../data/destinations';
-import { packages } from '../data/packages';
-import { testimonials } from '../data/testimonials';
+import { SkeletonCard } from '../components/ui/LoadingSpinner';
+import { useDestinations } from '../hooks/useDestinations';
+import { usePackages } from '../hooks/usePackages';
+import { useTestimonials } from '../hooks/useTestimonials';
 
 const features = [
   {
@@ -42,6 +36,10 @@ const features = [
 ];
 
 export default function Home() {
+  const { destinations, loading: loadingDestinations } = useDestinations();
+  const { packages, loading: loadingPackages } = usePackages();
+  const { testimonials, loading: loadingTestimonials } = useTestimonials();
+
   const featuredPackages = packages.filter((p) => p.featured).slice(0, 3);
   const popularDestinations = destinations.slice(0, 4);
   const featuredTestimonials = testimonials.slice(0, 3);
@@ -136,9 +134,13 @@ export default function Home() {
             subtitle="Explore the most sought-after destinations in Northeast India, from the misty hills of Darjeeling to the pristine valleys of Sikkim"
           />
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {popularDestinations.map((dest, index) => (
-              <DestinationCard key={dest.id} destination={dest} index={index} />
-            ))}
+            {loadingDestinations ? (
+              [...Array(4)].map((_, i) => <SkeletonCard key={i} />)
+            ) : (
+              popularDestinations.map((dest, index) => (
+                <DestinationCard key={dest.id} destination={dest} index={index} />
+              ))
+            )}
           </div>
           <div className="text-center mt-12">
             <Link to="/destinations">
@@ -160,9 +162,13 @@ export default function Home() {
             subtitle="Handpicked tour packages offering the best experiences in Northeast India at unbeatable prices"
           />
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {featuredPackages.map((pkg, index) => (
-              <PackageCard key={pkg.id} pkg={pkg} index={index} />
-            ))}
+            {loadingPackages ? (
+              [...Array(3)].map((_, i) => <SkeletonCard key={i} />)
+            ) : (
+              featuredPackages.map((pkg, index) => (
+                <PackageCard key={pkg.id} pkg={pkg} index={index} />
+              ))
+            )}
           </div>
           <div className="text-center mt-12">
             <Link to="/packages">
@@ -255,13 +261,17 @@ export default function Home() {
             subtitle="Real experiences from real travelers who explored Northeast India with us"
           />
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {featuredTestimonials.map((testimonial, index) => (
-              <TestimonialCard
-                key={testimonial.id}
-                testimonial={testimonial}
-                index={index}
-              />
-            ))}
+            {loadingTestimonials ? (
+              [...Array(3)].map((_, i) => <SkeletonCard key={i} />)
+            ) : (
+              featuredTestimonials.map((testimonial, index) => (
+                <TestimonialCard
+                  key={testimonial.id}
+                  testimonial={testimonial}
+                  index={index}
+                />
+              ))
+            )}
           </div>
         </div>
       </section>

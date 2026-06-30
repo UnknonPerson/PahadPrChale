@@ -72,17 +72,17 @@ export default function Register() {
 
     setIsLoading(true);
 
-    const success = await register(
+    const result = await register(
       formData.name,
       formData.email,
       formData.phone,
       formData.password
     );
 
-    if (success) {
+    if (result.success) {
       navigate('/');
     } else {
-      setError('Registration failed. Please try again.');
+      setError(result.message || 'Registration failed. Please try again.');
     }
 
     setIsLoading(false);
