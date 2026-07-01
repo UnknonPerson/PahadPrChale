@@ -1,5 +1,6 @@
 import Vehicle from '../models/Vehicle.js';
 import Destination from '../models/Destination.js';
+import Activity from '../models/Activity.js';
 import asyncHandler from '../middleware/asyncHandler.js';
 import { sendSuccess, sendError, sendPaginated } from '../utils/response.js';
 
@@ -100,6 +101,16 @@ export const createVehicle = asyncHandler(async (req, res) => {
     description,
   });
 
+  // Create activity
+  await Activity.create({
+    user: req.user._id,
+    type: 'vehicle_created',
+    description: `Vehicle created: ${vehicleName} (${vehicleType})`,
+    relatedId: vehicle._id,
+    relatedModel: 'Vehicle',
+    metadata: { seats, pricePerDay },
+  });
+
   sendSuccess(res, { vehicle }, 'Vehicle created successfully', 201);
 });
 
@@ -120,6 +131,15 @@ export const updateVehicle = asyncHandler(async (req, res) => {
     runValidators: true,
   });
 
+  // Create activity
+  await Activity.create({
+    user: req.user._id,
+    type: 'vehicle_updated',
+    description: `Vehicle updated: ${vehicle.vehicleName}`,
+    relatedId: vehicle._id,
+    relatedModel: 'Vehicle',
+  });
+
   sendSuccess(res, { vehicle }, 'Vehicle updated successfully');
 });
 
@@ -135,7 +155,19 @@ export const deleteVehicle = asyncHandler(async (req, res) => {
     return sendError(res, 'Vehicle not found', 404);
   }
 
+  const vehicleName = vehicle.vehicleName;
+  const vehicleId = vehicle._id;
+
   await vehicle.deleteOne();
+
+  // Create activity
+  await Activity.create({
+    user: req.user._id,
+    type: 'vehicle_deleted',
+    description: `Vehicle deleted: ${vehicleName}`,
+    relatedId: vehicleId,
+    relatedModel: 'Vehicle',
+  });
 
   sendSuccess(res, null, 'Vehicle deleted successfully');
 });

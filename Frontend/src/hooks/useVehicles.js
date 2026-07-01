@@ -7,21 +7,23 @@ export function useVehicles(filters = {}) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  const filtersKey = JSON.stringify(filters);
+
   const fetchVehicles = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       const response = await vehicleService.getAll(filters);
       const data = response.data || response;
-      setVehicles(data.length > 0 ? data : fallbackVehicles);
+      setVehicles(Array.isArray(data) && data.length > 0 ? data : []);
     } catch (err) {
       console.error('Failed to fetch vehicles:', err);
       setError(err.message || 'Failed to load vehicles');
-      setVehicles(fallbackVehicles);
+      setVehicles([]);
     } finally {
       setLoading(false);
     }
-  }, [filters]);
+  }, [filtersKey]);
 
   useEffect(() => {
     fetchVehicles();

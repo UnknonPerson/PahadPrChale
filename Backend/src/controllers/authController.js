@@ -1,4 +1,5 @@
 import User from '../models/User.js';
+import Activity from '../models/Activity.js';
 import { generateToken, getTokenExpiration } from '../utils/jwt.js';
 import asyncHandler from '../middleware/asyncHandler.js';
 import { sendSuccess, sendError } from '../utils/response.js';
@@ -23,6 +24,17 @@ export const register = asyncHandler(async (req, res) => {
     email,
     password,
     phone,
+  });
+
+  // Create activity
+  await Activity.create({
+    user: user._id,
+    type: 'user_registered',
+    description: `New user registered: ${name} (${email})`,
+    relatedId: user._id,
+    relatedModel: 'User',
+    ipAddress: req.ip,
+    userAgent: req.headers['user-agent'],
   });
 
   // Generate token
@@ -79,6 +91,17 @@ export const login = asyncHandler(async (req, res) => {
   if (!isMatch) {
     return sendError(res, 'Invalid credentials', 401);
   }
+
+  // Create activity
+  await Activity.create({
+    user: user._id,
+    type: 'user_login',
+    description: `User logged in: ${user.name} (${user.email})`,
+    relatedId: user._id,
+    relatedModel: 'User',
+    ipAddress: req.ip,
+    userAgent: req.headers['user-agent'],
+  });
 
   // Generate token
   const token = generateToken(user._id);

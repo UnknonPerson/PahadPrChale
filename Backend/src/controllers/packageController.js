@@ -1,4 +1,5 @@
 import Package from '../models/Package.js';
+import Activity from '../models/Activity.js';
 import asyncHandler from '../middleware/asyncHandler.js';
 import { sendSuccess, sendError, sendPaginated } from '../utils/response.js';
 
@@ -124,6 +125,16 @@ export const createPackage = asyncHandler(async (req, res) => {
     featured: featured || false,
   });
 
+  // Create activity
+  await Activity.create({
+    user: req.user._id,
+    type: 'package_created',
+    description: `Package created: ${name} (${duration})`,
+    relatedId: pkg._id,
+    relatedModel: 'Package',
+    metadata: { price, category },
+  });
+
   sendSuccess(res, { package: pkg }, 'Package created successfully', 201);
 });
 
@@ -144,6 +155,15 @@ export const updatePackage = asyncHandler(async (req, res) => {
     runValidators: true,
   });
 
+  // Create activity
+  await Activity.create({
+    user: req.user._id,
+    type: 'package_updated',
+    description: `Package updated: ${pkg.name}`,
+    relatedId: pkg._id,
+    relatedModel: 'Package',
+  });
+
   sendSuccess(res, { package: pkg }, 'Package updated successfully');
 });
 
@@ -162,6 +182,15 @@ export const deletePackage = asyncHandler(async (req, res) => {
   // Soft delete
   pkg.isActive = false;
   await pkg.save();
+
+  // Create activity
+  await Activity.create({
+    user: req.user._id,
+    type: 'package_deleted',
+    description: `Package deleted: ${pkg.name}`,
+    relatedId: pkg._id,
+    relatedModel: 'Package',
+  });
 
   sendSuccess(res, null, 'Package deleted successfully');
 });

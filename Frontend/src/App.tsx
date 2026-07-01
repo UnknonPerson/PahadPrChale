@@ -38,6 +38,8 @@ import Customers from './pages/admin/Customers';
 import ReviewsManagement from './pages/admin/Reviews';
 import Messages from './pages/admin/Messages';
 import AdminSettings from './pages/admin/Settings';
+import Activities from './pages/admin/Activities';
+import CustomTours from './pages/admin/CustomTours';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 
 export default function App() {
@@ -133,6 +135,8 @@ export default function App() {
                     <Route path="customers" element={<Customers />} />
                     <Route path="reviews" element={<ReviewsManagement />} />
                     <Route path="messages" element={<Messages />} />
+                    <Route path="activities" element={<Activities />} />
+                    <Route path="custom-tours" element={<CustomTours />} />
                     <Route path="settings" element={<AdminSettings />} />
                   </Route>
                 </Routes>

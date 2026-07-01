@@ -16,18 +16,27 @@ import {
   ChevronLeft,
   Bell,
   Search,
+  Hotel,
+  Car,
+  Activity,
+  Route,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import ThemeToggle from '../../components/ui/ThemeToggle';
+import NotificationDropdown from '../../components/ui/NotificationDropdown';
 
 const menuItems = [
   { name: 'Dashboard', path: '/admin', icon: LayoutDashboard },
   { name: 'Bookings', path: '/admin/bookings', icon: CalendarCheck },
   { name: 'Packages', path: '/admin/packages', icon: Package },
   { name: 'Destinations', path: '/admin/destinations', icon: MapPin },
+  { name: 'Hotels', path: '/admin/hotels', icon: Hotel },
+  { name: 'Vehicles', path: '/admin/vehicles', icon: Car },
   { name: 'Customers', path: '/admin/customers', icon: Users },
   { name: 'Reviews', path: '/admin/reviews', icon: MessageSquare },
   { name: 'Messages', path: '/admin/messages', icon: MessageSquare },
+  { name: 'Activities', path: '/admin/activities', icon: Activity },
+  { name: 'Custom Tours', path: '/admin/custom-tours', icon: Route },
   { name: 'Settings', path: '/admin/settings', icon: Settings },
 ];
 
@@ -205,10 +214,7 @@ export default function AdminLayout() {
             </div>
 
             <div className="flex items-center gap-3">
-              <button className="relative p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
-                <Bell className="w-5 h-5 text-gray-500" />
-                <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-              </button>
+              <NotificationDropdown />
 
               <ThemeToggle />
 

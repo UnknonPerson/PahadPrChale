@@ -7,21 +7,23 @@ export function usePackages(filters = {}) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  const filtersKey = JSON.stringify(filters);
+
   const fetchPackages = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       const response = await packageService.getAll(filters);
       const data = response.data || response;
-      setPackages(data.length > 0 ? data : fallbackPackages);
+      setPackages(Array.isArray(data) && data.length > 0 ? data : []);
     } catch (err) {
       console.error('Failed to fetch packages:', err);
       setError(err.message || 'Failed to load packages');
-      setPackages(fallbackPackages);
+      setPackages([]);
     } finally {
       setLoading(false);
     }
-  }, [filters]);
+  }, [filtersKey]);
 
   useEffect(() => {
     fetchPackages();

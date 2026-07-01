@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Search, ListFilter as Filter, Eye, Check, X, Trash2, CalendarCheck, Download } from 'lucide-react';
+import { Search, ListFilter as Filter, Eye, Check, X, Trash2, CalendarCheck } from 'lucide-react';
 import { useAllBookings, useBookingActions } from '../../hooks/useBookings';
+import ExportButton from '../../components/ui/ExportButton';
 import type { Booking } from '../../data/adminData';
 
 const statusFilters = ['All', 'pending', 'confirmed', 'completed', 'cancelled'];
@@ -99,10 +100,7 @@ export default function Bookings() {
             Manage and track all tour bookings
           </p>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary-500 text-white hover:bg-primary-600 transition-colors">
-          <Download className="w-4 h-4" />
-          Export
-        </button>
+        <ExportButton type="bookings" data={bookingsList} />
       </div>
 
       {/* Loading and Error States */}

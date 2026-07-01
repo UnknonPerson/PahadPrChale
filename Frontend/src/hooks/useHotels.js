@@ -7,21 +7,23 @@ export function useHotels(filters = {}) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  const filtersKey = JSON.stringify(filters);
+
   const fetchHotels = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       const response = await hotelService.getAll(filters);
       const data = response.data || response;
-      setHotels(data.length > 0 ? data : fallbackHotels);
+      setHotels(Array.isArray(data) && data.length > 0 ? data : []);
     } catch (err) {
       console.error('Failed to fetch hotels:', err);
       setError(err.message || 'Failed to load hotels');
-      setHotels(fallbackHotels);
+      setHotels([]);
     } finally {
       setLoading(false);
     }
-  }, [filters]);
+  }, [filtersKey]);
 
   useEffect(() => {
     fetchHotels();

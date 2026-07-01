@@ -1,5 +1,7 @@
 import Booking from '../models/Booking.js';
 import Package from '../models/Package.js';
+import Activity from '../models/Activity.js';
+import Notification from '../models/Notification.js';
 import asyncHandler from '../middleware/asyncHandler.js';
 import { sendSuccess, sendError, sendPaginated } from '../utils/response.js';
 
@@ -40,6 +42,16 @@ export const createBooking = asyncHandler(async (req, res) => {
     travelers,
     totalAmount,
     specialRequests: specialRequests || '',
+  });
+
+  // Create activity
+  await Activity.create({
+    user: req.user?._id || null,
+    type: 'booking_created',
+    description: `New booking created: ${pkg.name} for ${travelers} traveler(s)`,
+    relatedId: booking._id,
+    relatedModel: 'Booking',
+    metadata: { packageName: pkg.name, travelers, totalAmount },
   });
 
   sendSuccess(res, { booking }, 'Booking created successfully', 201);
@@ -117,8 +129,31 @@ export const updateBookingStatus = asyncHandler(async (req, res) => {
     return sendError(res, 'Booking not found', 404);
   }
 
+  const previousStatus = booking.status;
   booking.status = status;
   await booking.save();
+
+  // Create activity
+  await Activity.create({
+    user: req.user._id,
+    type: 'booking_updated',
+    description: `Booking status changed from ${previousStatus} to ${status}: ${booking.packageName}`,
+    relatedId: booking._id,
+    relatedModel: 'Booking',
+    metadata: { previousStatus, newStatus: status },
+  });
+
+  // Notify user if they exist
+  if (booking.user) {
+    await Notification.create({
+      recipient: booking.user,
+      type: `booking_${status}`,
+      title: 'Booking Update',
+      message: `Your booking for ${booking.packageName} has been ${status}.`,
+      relatedId: booking._id,
+      relatedModel: 'Booking',
+    });
+  }
 
   sendSuccess(res, { booking }, 'Booking status updated successfully');
 });

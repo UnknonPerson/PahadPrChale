@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { motion } from 'framer-motion';
 import {
   Search,
   Mail,
@@ -9,57 +10,27 @@ import {
   Reply,
   Trash2,
   ChevronRight,
+  X,
+  Send,
 } from 'lucide-react';
-import { fallbackMessages, type Message } from '../../data/adminData';
+import { useAllMessages, useMessageActions, useUnreadMessageCount } from '../../hooks/useMessages';
 
 export default function Messages() {
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
-  const [messagesList, setMessagesList] = useState<Message[]>(fallbackMessages);
-  const [loading, setLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState('All');
+  const [selectedMessage, setSelectedMessage] = useState<any>(null);
+  const [replyText, setReplyText] = useState('');
+  const [isReplying, setIsReplying] = useState(false);
+  const [showReplyModal, setShowReplyModal] = useState(false);
 
-  useEffect(() => {
-    const fetchMessages = async () => {
-      try {
-        setLoading(true);
-        // Try to fetch from API endpoint
-        const response = await fetch('/api/messages', {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        });
+  const { messages, loading, error, refetch } = useAllMessages({ status: statusFilter !== 'All' ? statusFilter : undefined });
+  const unreadData = useUnreadMessageCount();
+  const { markAsRead, reply, remove } = useMessageActions();
 
-        if (response.ok) {
-          const data = await response.json();
-          // Ensure data is an array, handle both direct array and data wrapper
-          const messagesData = Array.isArray(data) ? data : data.messages || data.data || [];
-          if (messagesData.length > 0) {
-            setMessagesList(messagesData);
-          } else {
-            setMessagesList(fallbackMessages);
-          }
-        } else {
-          // API endpoint doesn't exist or failed, use fallback
-          setMessagesList(fallbackMessages);
-        }
-      } catch (error) {
-        // Network error or API unavailable, use fallback
-        console.error('Failed to fetch messages:', error);
-        setMessagesList(fallbackMessages);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchMessages();
-  }, []);
-
-  const filteredMessages = messagesList.filter(
-    (msg) =>
-      msg.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      msg.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      msg.subject.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredMessages = messages.filter(
+    (msg: any) =>
+      (msg.user?.name || msg.user?.email || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (msg.subject || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const getStatusColor = (status: string) => {
@@ -75,20 +46,55 @@ export default function Messages() {
     }
   };
 
-  const handleStatusChange = (msgId: string, newStatus: Message['status']) => {
-    setMessagesList((prev) =>
-      prev.map((m) => (m.id === msgId ? { ...m, status: newStatus } : m))
-    );
-    if (selectedMessage?.id === msgId) {
-      setSelectedMessage({ ...selectedMessage, status: newStatus });
+  const handleMarkAsRead = async (msgId: string) => {
+    try {
+      await markAsRead(msgId);
+      await refetch();
+      if (selectedMessage?._id === msgId) {
+        setSelectedMessage({ ...selectedMessage, status: 'read' });
+      }
+    } catch (err) {
+      console.error('Failed to mark as read:', err);
     }
   };
 
-  const handleDelete = (msgId: string) => {
-    if (confirm('Are you sure you want to delete this message?')) {
-      setMessagesList((prev) => prev.filter((m) => m.id !== msgId));
-      setSelectedMessage(null);
+  const handleReply = async () => {
+    if (!selectedMessage || !replyText.trim()) return;
+
+    try {
+      setIsReplying(true);
+      await reply(selectedMessage._id, replyText);
+      await refetch();
+      setSelectedMessage({ ...selectedMessage, status: 'replied', reply: replyText });
+      setReplyText('');
+      setShowReplyModal(false);
+    } catch (err) {
+      console.error('Failed to send reply:', err);
+    } finally {
+      setIsReplying(false);
     }
+  };
+
+  const handleDelete = async (msgId: string) => {
+    if (confirm('Are you sure you want to delete this message?')) {
+      try {
+        await remove(msgId);
+        await refetch();
+        setSelectedMessage(null);
+      } catch (err) {
+        console.error('Failed to delete message:', err);
+      }
+    }
+  };
+
+  const formatDate = (date: string) => {
+    return new Date(date).toLocaleDateString('en-IN', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
   };
 
   return (
@@ -114,7 +120,7 @@ export default function Messages() {
             <div>
               <p className="text-sm text-gray-500">Unread</p>
               <p className="text-xl font-bold text-blue-500">
-                {messagesList.filter(m => m.status === 'unread').length}
+                {unreadData.count || messages.filter((m: any) => m.status === 'unread').length}
               </p>
             </div>
           </div>
@@ -127,7 +133,7 @@ export default function Messages() {
             <div>
               <p className="text-sm text-gray-500">Read</p>
               <p className="text-xl font-bold text-gray-900 dark:text-white">
-                {messagesList.filter(m => m.status === 'read').length}
+                {messages.filter((m: any) => m.status === 'read').length}
               </p>
             </div>
           </div>
@@ -140,27 +146,51 @@ export default function Messages() {
             <div>
               <p className="text-sm text-gray-500">Replied</p>
               <p className="text-xl font-bold text-green-500">
-                {messagesList.filter(m => m.status === 'replied').length}
+                {messages.filter((m: any) => m.status === 'replied').length}
               </p>
             </div>
           </div>
         </div>
       </div>
 
+      {/* Search and Filter */}
+      <div className="glass-card p-4">
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div className="flex-1 relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search messages..."
+              className="input-field pl-10"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          <select
+            className="input-field"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+          >
+            <option value="All">All Status</option>
+            <option value="unread">Unread</option>
+            <option value="read">Read</option>
+            <option value="replied">Replied</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Error */}
+      {error && (
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4 text-red-700 dark:text-red-400">
+          {error}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Message List */}
         <div className="lg:col-span-1 glass-card overflow-hidden">
           <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search messages..."
-                className="input-field pl-10"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
+            <h3 className="font-medium text-gray-900 dark:text-white">Messages ({filteredMessages.length})</h3>
           </div>
 
           <div className="divide-y divide-gray-200 dark:divide-gray-700 max-h-[500px] overflow-y-auto">
@@ -170,19 +200,29 @@ export default function Messages() {
                 <p className="mt-2">Loading messages...</p>
               </div>
             )}
-            {!loading && filteredMessages.map((message) => (
-              <button
-                key={message.id}
+
+            {!loading && filteredMessages.length === 0 && (
+              <div className="py-8 text-center text-gray-500">
+                <Mail className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                <p>No messages found</p>
+              </div>
+            )}
+
+            {!loading && filteredMessages.map((message: any) => (
+              <motion.button
+                key={message._id}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
                 onClick={() => setSelectedMessage(message)}
                 className={`w-full p-4 text-left hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${
-                  selectedMessage?.id === message.id ? 'bg-primary-50 dark:bg-primary-900/20' : ''
+                  selectedMessage?._id === message._id ? 'bg-primary-50 dark:bg-primary-900/20' : ''
                 }`}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <p className="font-medium text-gray-900 dark:text-white truncate">
-                        {message.name}
+                        {message.user?.name || 'Unknown User'}
                       </p>
                       {message.status === 'unread' && (
                         <span className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0"></span>
@@ -193,19 +233,13 @@ export default function Messages() {
                     </p>
                     <p className="text-xs text-gray-400 mt-1 flex items-center gap-1">
                       <Clock className="w-3 h-3" />
-                      {message.createdAt}
+                      {formatDate(message.createdAt)}
                     </p>
                   </div>
                   <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />
                 </div>
-              </button>
+              </motion.button>
             ))}
-
-            {!loading && filteredMessages.length === 0 && (
-              <div className="py-8 text-center text-gray-500">
-                No messages found
-              </div>
-            )}
           </div>
         </div>
 
@@ -219,21 +253,25 @@ export default function Messages() {
                     {selectedMessage.subject}
                   </h2>
                   <div className="flex items-center gap-2 mt-2 text-sm text-gray-500">
-                    <span>From: {selectedMessage.name}</span>
-                    <span>|</span>
-                    <Mail className="w-4 h-4" />
-                    <span>{selectedMessage.email}</span>
-                    {selectedMessage.phone && (
+                    <span>From: {selectedMessage.user?.name || 'Unknown'}</span>
+                    {selectedMessage.user?.email && (
+                      <>
+                        <span>|</span>
+                        <Mail className="w-4 h-4" />
+                        <span>{selectedMessage.user.email}</span>
+                      </>
+                    )}
+                    {selectedMessage.user?.phone && (
                       <>
                         <span>|</span>
                         <Phone className="w-4 h-4" />
-                        <span>{selectedMessage.phone}</span>
+                        <span>{selectedMessage.user.phone}</span>
                       </>
                     )}
                   </div>
                   <div className="flex items-center gap-2 mt-2 text-sm text-gray-400">
                     <Calendar className="w-4 h-4" />
-                    <span>{selectedMessage.createdAt}</span>
+                    <span>{formatDate(selectedMessage.createdAt)}</span>
                     <span className={`ml-2 px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(selectedMessage.status)}`}>
                       {selectedMessage.status}
                     </span>
@@ -247,23 +285,40 @@ export default function Messages() {
                 </p>
               </div>
 
+              {selectedMessage.reply && (
+                <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-xl mb-6 border border-green-200 dark:border-green-800">
+                  <div className="flex items-center gap-2 mb-2 text-green-700 dark:text-green-400 font-medium">
+                    <Reply className="w-4 h-4" />
+                    Reply Sent
+                  </div>
+                  <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                    {selectedMessage.reply}
+                  </p>
+                  {selectedMessage.repliedAt && (
+                    <p className="text-xs text-gray-500 mt-2">
+                      Replied on {formatDate(selectedMessage.repliedAt)}
+                    </p>
+                  )}
+                </div>
+              )}
+
               <div className="flex items-center gap-3">
                 {selectedMessage.status === 'unread' && (
                   <button
-                    onClick={() => handleStatusChange(selectedMessage.id, 'read')}
+                    onClick={() => handleMarkAsRead(selectedMessage._id)}
                     className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
                   >
                     <Check className="w-4 h-4" /> Mark as Read
                   </button>
                 )}
                 <button
-                  onClick={() => handleStatusChange(selectedMessage.id, 'replied')}
+                  onClick={() => setShowReplyModal(true)}
                   className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary-500 text-white hover:bg-primary-600"
                 >
                   <Reply className="w-4 h-4" /> Reply
                 </button>
                 <button
-                  onClick={() => handleDelete(selectedMessage.id)}
+                  onClick={() => handleDelete(selectedMessage._id)}
                   className="flex items-center gap-2 px-4 py-2 rounded-xl text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
                 >
                   <Trash2 className="w-4 h-4" /> Delete
@@ -278,6 +333,71 @@ export default function Messages() {
           )}
         </div>
       </div>
+
+      {/* Reply Modal */}
+      {showReplyModal && selectedMessage && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-lg shadow-xl"
+          >
+            <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+              <h3 className="font-semibold text-gray-900 dark:text-white">Reply to Message</h3>
+              <button
+                onClick={() => {
+                  setShowReplyModal(false);
+                  setReplyText('');
+                }}
+                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            <div className="p-4">
+              <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
+                <p className="text-xs text-gray-500 mb-1">Original message:</p>
+                <p className="text-sm text-gray-700 dark:text-gray-300 line-clamp-2">{selectedMessage.message}</p>
+              </div>
+              <textarea
+                value={replyText}
+                onChange={(e) => setReplyText(e.target.value)}
+                placeholder="Type your reply..."
+                className="input-field h-32 resize-none"
+                autoFocus
+              />
+            </div>
+            <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setShowReplyModal(false);
+                  setReplyText('');
+                }}
+                className="px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleReply}
+                disabled={isReplying || !replyText.trim()}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary-500 text-white hover:bg-primary-600 disabled:opacity-50"
+              >
+                {isReplying ? (
+                  <span className="flex items-center gap-2">
+                    <span className="inline-block animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+                    Sending...
+                  </span>
+                ) : (
+                  <>
+                    <Send className="w-4 h-4" />
+                    Send Reply
+                  </>
+                )}
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }

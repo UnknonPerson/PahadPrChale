@@ -1,5 +1,6 @@
 import Hotel from '../models/Hotel.js';
 import Destination from '../models/Destination.js';
+import Activity from '../models/Activity.js';
 import asyncHandler from '../middleware/asyncHandler.js';
 import { sendSuccess, sendError, sendPaginated } from '../utils/response.js';
 
@@ -105,6 +106,16 @@ export const createHotel = asyncHandler(async (req, res) => {
     rating: rating || 4.0,
   });
 
+  // Create activity
+  await Activity.create({
+    user: req.user._id,
+    type: 'hotel_created',
+    description: `Hotel created: ${hotelName} (${category})`,
+    relatedId: hotel._id,
+    relatedModel: 'Hotel',
+    metadata: { pricePerNight, category },
+  });
+
   sendSuccess(res, { hotel }, 'Hotel created successfully', 201);
 });
 
@@ -125,6 +136,15 @@ export const updateHotel = asyncHandler(async (req, res) => {
     runValidators: true,
   });
 
+  // Create activity
+  await Activity.create({
+    user: req.user._id,
+    type: 'hotel_updated',
+    description: `Hotel updated: ${hotel.hotelName}`,
+    relatedId: hotel._id,
+    relatedModel: 'Hotel',
+  });
+
   sendSuccess(res, { hotel }, 'Hotel updated successfully');
 });
 
@@ -140,7 +160,19 @@ export const deleteHotel = asyncHandler(async (req, res) => {
     return sendError(res, 'Hotel not found', 404);
   }
 
+  const hotelName = hotel.hotelName;
+  const hotelId = hotel._id;
+
   await hotel.deleteOne();
+
+  // Create activity
+  await Activity.create({
+    user: req.user._id,
+    type: 'hotel_deleted',
+    description: `Hotel deleted: ${hotelName}`,
+    relatedId: hotelId,
+    relatedModel: 'Hotel',
+  });
 
   sendSuccess(res, null, 'Hotel deleted successfully');
 });

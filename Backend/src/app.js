@@ -12,6 +12,10 @@ import tripRoutes from './routes/tripRoutes.js';
 import testimonialRoutes from './routes/testimonialRoutes.js';
 import packageRoutes from './routes/packageRoutes.js';
 import bookingRoutes from './routes/bookingRoutes.js';
+import messageRoutes from './routes/messageRoutes.js';
+import notificationRoutes from './routes/notificationRoutes.js';
+import activityRoutes from './routes/activityRoutes.js';
+import customTourRequestRoutes from './routes/customTourRequestRoutes.js';
 
 // Import error handling middleware
 import { errorHandler, notFound } from './middleware/errorHandler.js';
@@ -47,6 +51,10 @@ app.use('/api/trips', tripRoutes);
 app.use('/api/testimonials', testimonialRoutes);
 app.use('/api/packages', packageRoutes);
 app.use('/api/bookings', bookingRoutes);
+app.use('/api/messages', messageRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/activities', activityRoutes);
+app.use('/api/custom-tours', customTourRequestRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -72,6 +80,10 @@ app.get('/api', (req, res) => {
       testimonials: '/api/testimonials',
       packages: '/api/packages',
       bookings: '/api/bookings',
+      messages: '/api/messages',
+      notifications: '/api/notifications',
+      activities: '/api/activities',
+      customTours: '/api/custom-tours',
     },
   });
 });
