@@ -1,5 +1,4 @@
 import Vehicle from '../models/Vehicle.js';
-import Destination from '../models/Destination.js';
 import Activity from '../models/Activity.js';
 import asyncHandler from '../middleware/asyncHandler.js';
 import { sendSuccess, sendError, sendPaginated } from '../utils/response.js';
@@ -37,7 +36,6 @@ export const getAllVehicles = asyncHandler(async (req, res) => {
   const skip = (parseInt(page) - 1) * parseInt(limit);
 
   const vehicles = await Vehicle.find(query)
-    .populate('destination', 'name state')
     .sort(sort)
     .skip(skip)
     .limit(parseInt(limit));
@@ -53,10 +51,7 @@ export const getAllVehicles = asyncHandler(async (req, res) => {
  * @access  Public
  */
 export const getVehicle = asyncHandler(async (req, res) => {
-  const vehicle = await Vehicle.findById(req.params.id).populate(
-    'destination',
-    'name state image'
-  );
+  const vehicle = await Vehicle.findById(req.params.id);
 
   if (!vehicle) {
     return sendError(res, 'Vehicle not found', 404);
@@ -82,12 +77,6 @@ export const createVehicle = asyncHandler(async (req, res) => {
     features,
     description,
   } = req.body;
-
-  // Verify destination exists
-  const destExists = await Destination.findById(destination);
-  if (!destExists) {
-    return sendError(res, 'Destination not found', 404);
-  }
 
   const vehicle = await Vehicle.create({
     vehicleType,

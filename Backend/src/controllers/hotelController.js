@@ -1,5 +1,4 @@
 import Hotel from '../models/Hotel.js';
-import Destination from '../models/Destination.js';
 import Activity from '../models/Activity.js';
 import asyncHandler from '../middleware/asyncHandler.js';
 import { sendSuccess, sendError, sendPaginated } from '../utils/response.js';
@@ -40,7 +39,6 @@ export const getAllHotels = asyncHandler(async (req, res) => {
   const skip = (parseInt(page) - 1) * parseInt(limit);
 
   const hotels = await Hotel.find(query)
-    .populate('destination', 'name state')
     .sort(sort)
     .skip(skip)
     .limit(parseInt(limit));
@@ -56,10 +54,7 @@ export const getAllHotels = asyncHandler(async (req, res) => {
  * @access  Public
  */
 export const getHotel = asyncHandler(async (req, res) => {
-  const hotel = await Hotel.findById(req.params.id).populate(
-    'destination',
-    'name state image'
-  );
+  const hotel = await Hotel.findById(req.params.id);
 
   if (!hotel) {
     return sendError(res, 'Hotel not found', 404);
@@ -86,12 +81,6 @@ export const createHotel = asyncHandler(async (req, res) => {
     contactNumber,
     rating,
   } = req.body;
-
-  // Verify destination exists
-  const destExists = await Destination.findById(destination);
-  if (!destExists) {
-    return sendError(res, 'Destination not found', 404);
-  }
 
   const hotel = await Hotel.create({
     destination,

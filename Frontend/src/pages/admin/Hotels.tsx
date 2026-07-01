@@ -18,23 +18,22 @@ export default function HotelsManagement() {
   const { create, update, remove } = useHotelActions();
 
   const [formData, setFormData] = useState({
-    name: '',
+    hotelName: '',
     destination: '',
-    destinationId: '',
     category: 'Standard' as Hotel['category'],
     pricePerNight: 0,
-    image: 'https://images.pexels.com/photos/258154/pexels-photo-258154.jpeg?auto=compress&cs=tinysrgb&w=800',
+    images: 'https://images.pexels.com/photos/258154/pexels-photo-258154.jpeg?auto=compress&cs=tinysrgb&w=800',
     amenities: '',
     rating: 4.0,
-    reviewCount: 0,
     description: '',
     address: '',
-    highlights: '',
+    contactNumber: '',
   });
 
   const filteredHotels = hotelsList.filter((hotel) => {
+    const hotelName = hotel.name || hotel.hotelName || '';
     const matchesSearch =
-      hotel.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      hotelName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       hotel.destination.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory = categoryFilter === 'All' || hotel.category === categoryFilter;
     return matchesSearch && matchesCategory;
@@ -57,27 +56,32 @@ export default function HotelsManagement() {
 
   const resetForm = () => {
     setFormData({
-      name: '',
+      hotelName: '',
       destination: '',
-      destinationId: '',
       category: 'Standard',
       pricePerNight: 0,
-      image: 'https://images.pexels.com/photos/258154/pexels-photo-258154.jpeg?auto=compress&cs=tinysrgb&w=800',
+      images: 'https://images.pexels.com/photos/258154/pexels-photo-258154.jpeg?auto=compress&cs=tinysrgb&w=800',
       amenities: '',
       rating: 4.0,
-      reviewCount: 0,
       description: '',
       address: '',
-      highlights: '',
+      contactNumber: '',
     });
     setEditingHotel(null);
   };
 
   const handleEdit = (hotel: Hotel) => {
     setFormData({
-      ...hotel,
-      amenities: hotel.amenities.join(', '),
-      highlights: hotel.highlights.join(', '),
+      hotelName: hotel.name || hotel.hotelName || '',
+      destination: hotel.destination || '',
+      category: hotel.category || 'Standard',
+      pricePerNight: hotel.pricePerNight || 0,
+      images: hotel.image || hotel.images?.[0] || 'https://images.pexels.com/photos/258154/pexels-photo-258154.jpeg?auto=compress&cs=tinysrgb&w=800',
+      amenities: hotel.amenities?.join(', ') || '',
+      rating: hotel.rating || 4.0,
+      description: hotel.description || '',
+      address: hotel.address || '',
+      contactNumber: hotel.contactNumber || '',
     });
     setEditingHotel(hotel);
     setShowForm(true);
@@ -103,13 +107,20 @@ export default function HotelsManagement() {
 
     try {
       const hotelData = {
-        ...formData,
+        hotelName: formData.hotelName,
+        destination: formData.destination,
+        category: formData.category,
+        pricePerNight: formData.pricePerNight,
+        images: [formData.images],
         amenities: formData.amenities.split(',').map((a) => a.trim()).filter(Boolean),
-        highlights: formData.highlights.split(',').map((h) => h.trim()).filter(Boolean),
+        rating: formData.rating,
+        description: formData.description,
+        address: formData.address,
+        contactNumber: formData.contactNumber,
       };
 
       if (editingHotel) {
-        await update(editingHotel.id, hotelData);
+        await update(editingHotel.id || editingHotel._id, hotelData);
       } else {
         await create(hotelData);
       }
@@ -205,9 +216,13 @@ export default function HotelsManagement() {
       {/* Hotels Grid */}
       {!loading && (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredHotels.map((hotel, index) => (
+        {filteredHotels.map((hotel, index) => {
+          const hotelId = hotel.id || hotel._id;
+          const hotelName = hotel.name || hotel.hotelName || '';
+          const hotelImage = hotel.image || hotel.images?.[0] || 'https://images.pexels.com/photos/258154/pexels-photo-258154.jpeg?auto=compress&cs=tinysrgb&w=800';
+          return (
           <motion.div
-            key={hotel.id}
+            key={hotelId}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.05 }}
@@ -215,8 +230,8 @@ export default function HotelsManagement() {
           >
             <div className="relative h-40">
               <img
-                src={hotel.image}
-                alt={hotel.name}
+                src={hotelImage}
+                alt={hotelName}
                 className="w-full h-full object-cover"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
@@ -226,7 +241,7 @@ export default function HotelsManagement() {
                 </span>
               </div>
               <div className="absolute bottom-3 left-3 right-3">
-                <h3 className="text-lg font-semibold text-white truncate">{hotel.name}</h3>
+                <h3 className="text-lg font-semibold text-white truncate">{hotelName}</h3>
                 <p className="text-sm text-white/80 flex items-center gap-1">
                   <MapPin className="w-3 h-3" />
                   {hotel.destination}
@@ -238,14 +253,14 @@ export default function HotelsManagement() {
               <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400 mb-3">
                 <div className="flex items-center gap-1">
                   <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
-                  {hotel.rating} ({hotel.reviewCount})
+                  {hotel.rating || 4.0}
                 </div>
               </div>
 
               <div className="flex items-center justify-between">
                 <div>
                   <span className="text-xl font-bold text-secondary-500">
-                    Rs {hotel.pricePerNight.toLocaleString('en-IN')}
+                    Rs {(hotel.pricePerNight || 0).toLocaleString('en-IN')}
                   </span>
                   <span className="text-sm text-gray-400">/night</span>
                 </div>
@@ -257,7 +272,7 @@ export default function HotelsManagement() {
                     <Edit2 className="w-4 h-4" />
                   </button>
                   <button
-                    onClick={() => handleDelete(hotel.id)}
+                    onClick={() => handleDelete(hotelId)}
                     className="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-gray-500 hover:text-red-500"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -266,7 +281,8 @@ export default function HotelsManagement() {
               </div>
             </div>
           </motion.div>
-        ))}
+        );
+        })}
         {filteredHotels.length === 0 && (
           <div className="text-center py-12 text-gray-500">
             No hotels found
@@ -316,8 +332,8 @@ export default function HotelsManagement() {
                   <input
                     type="text"
                     className="input-field"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    value={formData.hotelName}
+                    onChange={(e) => setFormData({ ...formData, hotelName: e.target.value })}
                     required
                   />
                 </div>
@@ -384,6 +400,17 @@ export default function HotelsManagement() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Contact Number
+                  </label>
+                  <input
+                    type="text"
+                    className="input-field"
+                    value={formData.contactNumber}
+                    onChange={(e) => setFormData({ ...formData, contactNumber: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Rating
                   </label>
                   <input
@@ -410,26 +437,14 @@ export default function HotelsManagement() {
                 </div>
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Highlights (comma-separated)
-                  </label>
-                  <input
-                    type="text"
-                    className="input-field"
-                    value={formData.highlights}
-                    onChange={(e) => setFormData({ ...formData, highlights: e.target.value })}
-                    placeholder="Mountain View, Colonial Architecture"
-                  />
-                </div>
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Image URL
                   </label>
                   <div className="flex gap-2">
                     <input
                       type="url"
                       className="input-field flex-1"
-                      value={formData.image}
-                      onChange={(e) => setFormData({ ...formData, image: e.target.value })}
+                      value={formData.images}
+                      onChange={(e) => setFormData({ ...formData, images: e.target.value })}
                     />
                     <button
                       type="button"

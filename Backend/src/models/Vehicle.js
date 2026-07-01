@@ -19,9 +19,9 @@ const vehicleSchema = new mongoose.Schema(
       max: [50, 'Vehicle cannot have more than 50 seats'],
     },
     destination: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Destination',
+      type: String,
       required: [true, 'Destination is required'],
+      trim: true,
     },
     pricePerDay: {
       type: Number,

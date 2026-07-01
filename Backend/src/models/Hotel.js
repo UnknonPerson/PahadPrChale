@@ -3,9 +3,9 @@ import mongoose from 'mongoose';
 const hotelSchema = new mongoose.Schema(
   {
     destination: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Destination',
+      type: String,
       required: [true, 'Destination is required'],
+      trim: true,
     },
     hotelName: {
       type: String,

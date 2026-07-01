@@ -14,17 +14,16 @@ export default function VehiclesManagement() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
-    name: '',
-    type: 'Sedan' as Vehicle['type'],
+    vehicleName: '',
+    vehicleType: 'Sedan' as Vehicle['type'],
     seats: 4,
+    destination: '',
     pricePerDay: 0,
     pricePerKm: 0,
+    images: 'https://images.pexels.com/photos/1209398/pexels-photo-1209398.jpeg?auto=compress&cs=tinysrgb&w=800',
     features: '',
     rating: 4.0,
     description: '',
-    destinations: '',
-    bestFor: '',
-    image: 'https://images.pexels.com/photos/1209398/pexels-photo-1209398.jpeg?auto=compress&cs=tinysrgb&w=800',
   });
 
   // Fetch vehicles from API
@@ -32,10 +31,12 @@ export default function VehiclesManagement() {
   const { create, update, remove } = useVehicleActions();
 
   const filteredVehicles = vehicles.filter((vehicle) => {
+    const vehicleName = vehicle.name || vehicle.vehicleName || '';
+    const vehicleType = vehicle.type || vehicle.vehicleType || '';
     const matchesSearch =
-      vehicle.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      vehicle.type.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesType = typeFilter === 'All' || vehicle.type === typeFilter;
+      vehicleName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      vehicleType.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesType = typeFilter === 'All' || vehicleType === typeFilter;
     return matchesSearch && matchesType;
   });
 
@@ -58,27 +59,32 @@ export default function VehiclesManagement() {
 
   const resetForm = () => {
     setFormData({
-      name: '',
-      type: 'Sedan',
+      vehicleName: '',
+      vehicleType: 'Sedan',
       seats: 4,
+      destination: '',
       pricePerDay: 0,
       pricePerKm: 0,
+      images: 'https://images.pexels.com/photos/1209398/pexels-photo-1209398.jpeg?auto=compress&cs=tinysrgb&w=800',
       features: '',
       rating: 4.0,
       description: '',
-      destinations: '',
-      bestFor: '',
-      image: 'https://images.pexels.com/photos/1209398/pexels-photo-1209398.jpeg?auto=compress&cs=tinysrgb&w=800',
     });
     setEditingVehicle(null);
   };
 
   const handleEdit = (vehicle: Vehicle) => {
     setFormData({
-      ...vehicle,
-      features: vehicle.features.join(', '),
-      destinations: vehicle.destinations.join(', '),
-      bestFor: vehicle.bestFor.join(', '),
+      vehicleName: vehicle.name || vehicle.vehicleName || '',
+      vehicleType: vehicle.type || vehicle.vehicleType || 'Sedan',
+      seats: vehicle.seats || 4,
+      destination: vehicle.destination || '',
+      pricePerDay: vehicle.pricePerDay || 0,
+      pricePerKm: vehicle.pricePerKm || 0,
+      images: vehicle.image || vehicle.images?.[0] || 'https://images.pexels.com/photos/1209398/pexels-photo-1209398.jpeg?auto=compress&cs=tinysrgb&w=800',
+      features: vehicle.features?.join(', ') || '',
+      rating: vehicle.rating || 4.0,
+      description: vehicle.description || '',
     });
     setEditingVehicle(vehicle);
     setShowForm(true);
@@ -106,14 +112,20 @@ export default function VehiclesManagement() {
       setSubmitError(null);
 
       const vehicleData = {
-        ...formData,
+        vehicleName: formData.vehicleName,
+        vehicleType: formData.vehicleType,
+        seats: formData.seats,
+        destination: formData.destination,
+        pricePerDay: formData.pricePerDay,
+        pricePerKm: formData.pricePerKm,
+        images: [formData.images],
         features: formData.features.split(',').map((f) => f.trim()).filter(Boolean),
-        destinations: formData.destinations.split(',').map((d) => d.trim()).filter(Boolean),
-        bestFor: formData.bestFor.split(',').map((b) => b.trim()).filter(Boolean),
+        rating: formData.rating,
+        description: formData.description,
       };
 
       if (editingVehicle) {
-        await update(editingVehicle.id, vehicleData);
+        await update(editingVehicle.id || editingVehicle._id, vehicleData);
       } else {
         await create(vehicleData);
       }
@@ -211,9 +223,14 @@ export default function VehiclesManagement() {
       {/* Vehicles Grid */}
       {!loading && (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredVehicles.map((vehicle, index) => (
+        {filteredVehicles.map((vehicle, index) => {
+          const vehicleId = vehicle.id || vehicle._id;
+          const vehicleName = vehicle.name || vehicle.vehicleName || '';
+          const vehicleType = vehicle.type || vehicle.vehicleType || '';
+          const vehicleImage = vehicle.image || vehicle.images?.[0] || 'https://images.pexels.com/photos/1209398/pexels-photo-1209398.jpeg?auto=compress&cs=tinysrgb&w=800';
+          return (
           <motion.div
-            key={vehicle.id}
+            key={vehicleId}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.05 }}
@@ -221,18 +238,18 @@ export default function VehiclesManagement() {
           >
             <div className="relative h-40">
               <img
-                src={vehicle.image}
-                alt={vehicle.name}
+                src={vehicleImage}
+                alt={vehicleName}
                 className="w-full h-full object-cover"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
               <div className="absolute top-3 left-3">
-                <span className={`px-2 py-1 rounded-lg text-xs font-medium ${getTypeColor(vehicle.type)}`}>
-                  {vehicle.type}
+                <span className={`px-2 py-1 rounded-lg text-xs font-medium ${getTypeColor(vehicleType)}`}>
+                  {vehicleType}
                 </span>
               </div>
               <div className="absolute bottom-3 left-3 right-3">
-                <h3 className="text-lg font-semibold text-white truncate">{vehicle.name}</h3>
+                <h3 className="text-lg font-semibold text-white truncate">{vehicleName}</h3>
                 <p className="text-sm text-white/80 flex items-center gap-1">
                   <Users className="w-3 h-3" />
                   {vehicle.seats} seats
@@ -244,18 +261,18 @@ export default function VehiclesManagement() {
               <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400 mb-3">
                 <div className="flex items-center gap-1">
                   <Fuel className="w-4 h-4" />
-                  {vehicle.type}
+                  {vehicleType}
                 </div>
                 <div className="flex items-center gap-1">
                   <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
-                  {vehicle.rating}
+                  {vehicle.rating || 4.0}
                 </div>
               </div>
 
               <div className="flex items-center justify-between">
                 <div>
                   <span className="text-xl font-bold text-secondary-500">
-                    Rs {vehicle.pricePerDay.toLocaleString('en-IN')}
+                    Rs {(vehicle.pricePerDay || 0).toLocaleString('en-IN')}
                   </span>
                   <span className="text-sm text-gray-400">/day</span>
                 </div>
@@ -268,7 +285,7 @@ export default function VehiclesManagement() {
                     <Edit2 className="w-4 h-4" />
                   </button>
                   <button
-                    onClick={() => handleDelete(vehicle.id)}
+                    onClick={() => handleDelete(vehicleId)}
                     disabled={loading || isSubmitting}
                     className="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-gray-500 hover:text-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
@@ -278,7 +295,8 @@ export default function VehiclesManagement() {
               </div>
             </div>
           </motion.div>
-        ))}
+        );
+        })}
         {filteredVehicles.length === 0 && (
           <div className="text-center py-12 text-gray-500">
             No vehicles found
@@ -327,8 +345,8 @@ export default function VehiclesManagement() {
                   <input
                     type="text"
                     className="input-field"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    value={formData.vehicleName}
+                    onChange={(e) => setFormData({ ...formData, vehicleName: e.target.value })}
                     required
                   />
                 </div>
@@ -338,8 +356,8 @@ export default function VehiclesManagement() {
                   </label>
                   <select
                     className="input-field"
-                    value={formData.type}
-                    onChange={(e) => setFormData({ ...formData, type: e.target.value as Vehicle['type'] })}
+                    value={formData.vehicleType}
+                    onChange={(e) => setFormData({ ...formData, vehicleType: e.target.value as Vehicle['type'] })}
                   >
                     <option value="Sedan">Sedan</option>
                     <option value="SUV">SUV</option>
@@ -367,8 +385,21 @@ export default function VehiclesManagement() {
                     type="number"
                     className="input-field"
                     value={formData.seats}
-                    onChange={(e) => setFormData({ ...formData, seats: parseInt(e.target.value) })}
+                    onChange={(e) => setFormData({ ...formData, seats: parseInt(e.target.value) || 4 })}
                     min="1"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Destination *
+                  </label>
+                  <input
+                    type="text"
+                    className="input-field"
+                    value={formData.destination}
+                    onChange={(e) => setFormData({ ...formData, destination: e.target.value })}
+                    placeholder="Darjeeling, Gangtok, etc."
                     required
                   />
                 </div>
@@ -380,7 +411,7 @@ export default function VehiclesManagement() {
                     type="number"
                     className="input-field"
                     value={formData.pricePerDay}
-                    onChange={(e) => setFormData({ ...formData, pricePerDay: parseInt(e.target.value) })}
+                    onChange={(e) => setFormData({ ...formData, pricePerDay: parseInt(e.target.value) || 0 })}
                     required
                   />
                 </div>
@@ -392,7 +423,7 @@ export default function VehiclesManagement() {
                     type="number"
                     className="input-field"
                     value={formData.pricePerKm}
-                    onChange={(e) => setFormData({ ...formData, pricePerKm: parseInt(e.target.value) })}
+                    onChange={(e) => setFormData({ ...formData, pricePerKm: parseInt(e.target.value) || 0 })}
                   />
                 </div>
                 <div>
@@ -403,7 +434,7 @@ export default function VehiclesManagement() {
                     type="number"
                     className="input-field"
                     value={formData.rating}
-                    onChange={(e) => setFormData({ ...formData, rating: parseFloat(e.target.value) })}
+                    onChange={(e) => setFormData({ ...formData, rating: parseFloat(e.target.value) || 4.0 })}
                     min="0"
                     max="5"
                     step="0.1"
@@ -423,38 +454,14 @@ export default function VehiclesManagement() {
                 </div>
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Available Destinations (comma-separated)
-                  </label>
-                  <input
-                    type="text"
-                    className="input-field"
-                    value={formData.destinations}
-                    onChange={(e) => setFormData({ ...formData, destinations: e.target.value })}
-                    placeholder="Darjeeling, Gangtok, Pelling"
-                  />
-                </div>
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Best For (comma-separated)
-                  </label>
-                  <input
-                    type="text"
-                    className="input-field"
-                    value={formData.bestFor}
-                    onChange={(e) => setFormData({ ...formData, bestFor: e.target.value })}
-                    placeholder="Family Trips, Group Travel, Solo Adventure"
-                  />
-                </div>
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Image URL
                   </label>
                   <div className="flex gap-2">
                     <input
                       type="url"
                       className="input-field flex-1"
-                      value={formData.image}
-                      onChange={(e) => setFormData({ ...formData, image: e.target.value })}
+                      value={formData.images}
+                      onChange={(e) => setFormData({ ...formData, images: e.target.value })}
                     />
                     <button
                       type="button"
