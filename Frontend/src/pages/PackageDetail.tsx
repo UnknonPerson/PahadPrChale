@@ -246,7 +246,7 @@ export default function PackageDetail() {
                   </div>
                 </div>
 
-                <Link to="/booking">
+                <Link to={`/booking?type=package&id=${pkg.id || pkg._id}`}>
                   <Button variant="primary" className="w-full mb-3">
                     Book Now
                   </Button>

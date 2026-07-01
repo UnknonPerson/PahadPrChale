@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import type { Package } from '../../data/packages';
 
 interface PackageCardProps {
-  pkg: Package;
+  pkg: Package & { _id?: string };
   index?: number;
 }
 
@@ -88,7 +88,7 @@ export default function PackageCard({ pkg, index = 0 }: PackageCardProps) {
                 )}
               </div>
             </div>
-            <Link to={`/packages/${pkg.id}`}>
+            <Link to={`/packages/${pkg.id || pkg._id}`}>
               <button className="flex items-center gap-2 text-primary-500 font-semibold hover:text-primary-600 transition-colors group/btn">
                 View Details
                 <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />

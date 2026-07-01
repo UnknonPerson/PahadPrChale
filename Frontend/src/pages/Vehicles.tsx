@@ -23,9 +23,11 @@ export default function Vehicles() {
   const [showFilters, setShowFilters] = useState(false);
 
   const filteredVehicles = vehicles.filter(vehicle => {
-    const matchesSearch = vehicle.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          vehicle.type.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesType = typeFilter === 'All' || vehicle.type === typeFilter;
+    const vehicleName = vehicle.name || vehicle.vehicleName || '';
+    const vehicleType = vehicle.type || vehicle.vehicleType || '';
+    const matchesSearch = vehicleName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          vehicleType.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesType = typeFilter === 'All' || vehicleType === typeFilter;
     const matchesSeats = seatsFilter === 0 ||
                          (seatsFilter === 4 && vehicle.seats <= 4) ||
                          (seatsFilter === 7 && vehicle.seats > 4 && vehicle.seats <= 7) ||
@@ -33,6 +35,11 @@ export default function Vehicles() {
     const matchesPrice = vehicle.pricePerDay >= priceRange[0] && vehicle.pricePerDay <= priceRange[1];
     return matchesSearch && matchesType && matchesSeats && matchesPrice;
   });
+
+  // Helper function to get vehicle image
+  const getVehicleImage = (vehicle: any) => vehicle.image || vehicle.images?.[0] || 'https://images.pexels.com/photos/1209398/pexels-photo-1209398.jpeg?auto=compress&cs=tinysrgb&w=800';
+  const getVehicleName = (vehicle: any) => vehicle.name || vehicle.vehicleName || 'Unknown Vehicle';
+  const getVehicleType = (vehicle: any) => vehicle.type || vehicle.vehicleType || 'Sedan';
 
   const getTypeColor = (type: string) => {
     switch (type) {
@@ -216,9 +223,14 @@ export default function Vehicles() {
                 ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'
                 : 'space-y-6'
             }>
-              {filteredVehicles.map((vehicle, index) => (
+              {filteredVehicles.map((vehicle, index) => {
+                const vehicleId = vehicle.id || vehicle._id;
+                const vehicleImage = getVehicleImage(vehicle);
+                const vehicleName = getVehicleName(vehicle);
+                const vehicleType = getVehicleType(vehicle);
+                return (
                 <motion.div
-                  key={vehicle.id}
+                  key={vehicleId}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.05 }}
@@ -226,14 +238,14 @@ export default function Vehicles() {
                 >
                   <div className="relative h-48 overflow-hidden">
                     <img
-                      src={vehicle.image}
-                      alt={vehicle.name}
+                      src={vehicleImage}
+                      alt={vehicleName}
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
                     <div className="absolute top-4 left-4">
-                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getTypeColor(vehicle.type)}`}>
-                        {vehicle.type}
+                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getTypeColor(vehicleType)}`}>
+                        {vehicleType}
                       </span>
                     </div>
                     <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between text-white">
@@ -245,21 +257,21 @@ export default function Vehicles() {
                       </div>
                       <div className="flex items-center gap-1">
                         <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
-                        <span className="text-sm font-semibold">{vehicle.rating}</span>
+                        <span className="text-sm font-semibold">{vehicle.rating || 4.0}</span>
                       </div>
                     </div>
                   </div>
 
                   <div className="p-5">
                     <h3 className="text-lg font-display font-semibold text-surface-900 dark:text-white mb-2 group-hover:text-primary-500 transition-colors">
-                      {vehicle.name}
+                      {vehicleName}
                     </h3>
                     <p className="text-sm text-surface-500 dark:text-surface-400 mb-4 line-clamp-2">
-                      {vehicle.description}
+                      {vehicle.description || 'Comfortable and reliable vehicle for your journey.'}
                     </p>
 
                     <div className="flex flex-wrap gap-2 mb-4">
-                      {vehicle.features.slice(0, 3).map((feature, i) => (
+                      {(vehicle.features || []).slice(0, 3).map((feature: string, i: number) => (
                         <span key={i} className="text-xs px-2 py-1 rounded-lg bg-surface-100 dark:bg-surface-800 text-surface-600 dark:text-surface-400">
                           {feature}
                         </span>
@@ -270,18 +282,19 @@ export default function Vehicles() {
                       <div>
                         <span className="text-sm text-surface-500">per day</span>
                         <p className="text-xl font-bold text-primary-500">
-                          Rs {vehicle.pricePerDay.toLocaleString('en-IN')}
+                          Rs {(vehicle.pricePerDay || 0).toLocaleString('en-IN')}
                         </p>
                       </div>
-                      <Link to={`/vehicles/${vehicle.id}`}>
+                      <Link to={`/vehicles/${vehicleId}`}>
                         <button className="btn-primary py-2 px-4 text-sm">
-                          Book Now
+                          View Details
                         </button>
                       </Link>
                     </div>
                   </div>
                 </motion.div>
-              ))}
+              );
+              })}
             </div>
           ) : (
             <div className="text-center py-16">

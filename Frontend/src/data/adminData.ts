@@ -1,14 +1,36 @@
 export interface Booking {
-  id: string;
+  _id: string;
+  id?: string;
+  bookingId?: string;
+  type?: 'package' | 'vehicle';
+  user?: string;
+  package?: {
+    _id: string;
+    name: string;
+    image: string;
+    duration?: string;
+  };
+  vehicle?: {
+    _id: string;
+    vehicleName?: string;
+    name?: string;
+    images?: string[];
+  };
   customerName: string;
   customerEmail: string;
   customerPhone: string;
-  packageName: string;
-  destination: string;
-  date: string;
+  packageName?: string;
+  vehicleName?: string;
+  destination?: string;
+  travelDate: string;
+  returnDate?: string;
   travelers: number;
+  pickupLocation?: string;
+  driverRequired?: boolean;
   totalAmount: number;
   status: 'pending' | 'confirmed' | 'completed' | 'cancelled';
+  paymentStatus?: 'pending' | 'paid' | 'refunded';
+  specialRequests?: string;
   createdAt: string;
 }
 
@@ -51,13 +73,15 @@ export interface Message {
 // Fallback admin data when API fails or database is empty
 export const fallbackBookings: Booking[] = [
   {
-    id: 'BK001',
+    _id: 'BK001',
+    bookingId: 'PK001ABC123',
+    type: 'package',
     customerName: 'Rahul Sharma',
     customerEmail: 'rahul@email.com',
     customerPhone: '+91 98765 43210',
     packageName: 'Darjeeling & Gangtok Explorer',
     destination: 'Darjeeling, Gangtok',
-    date: '2024-03-15',
+    travelDate: '2024-03-15',
     travelers: 4,
     totalAmount: 99996,
     status: 'confirmed',

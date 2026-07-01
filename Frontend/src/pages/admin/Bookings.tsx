@@ -22,10 +22,14 @@ export default function Bookings() {
   }, [apiBookings]);
 
   const filteredBookings = bookingsList.filter((booking) => {
+    const bookingId = booking.bookingId || booking._id || booking.id || '';
+    const bookingName = booking.type === 'vehicle'
+      ? (booking.vehicleName || booking.vehicle?.vehicleName || booking.vehicle?.name || '')
+      : (booking.packageName || booking.package?.name || '');
     const matchesSearch =
       booking.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      booking.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      booking.packageName.toLowerCase().includes(searchQuery.toLowerCase());
+      bookingId.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      bookingName.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === 'All' || booking.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
@@ -49,9 +53,9 @@ export default function Bookings() {
     try {
       // Optimistic update
       setBookingsList((prev) =>
-        prev.map((b) => (b.id === bookingId ? { ...b, status: newStatus } : b))
+        prev.map((b) => ((b.bookingId || b._id || b.id) === bookingId ? { ...b, status: newStatus } : b))
       );
-      if (selectedBooking?.id === bookingId) {
+      if (selectedBooking && (selectedBooking.bookingId || selectedBooking._id || selectedBooking.id) === bookingId) {
         setSelectedBooking({ ...selectedBooking, status: newStatus });
       }
 
@@ -73,7 +77,7 @@ export default function Bookings() {
     if (confirm('Are you sure you want to delete this booking?')) {
       try {
         // Optimistic update
-        setBookingsList((prev) => prev.filter((b) => b.id !== bookingId));
+        setBookingsList((prev) => prev.filter((b) => (b.bookingId || b._id || b.id) !== bookingId));
         setSelectedBooking(null);
 
         // Call API to delete
@@ -181,9 +185,17 @@ export default function Bookings() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-              {filteredBookings.map((booking, index) => (
+              {filteredBookings.map((booking, index) => {
+                const bookingIdDisplay = booking.bookingId || booking._id || booking.id || '';
+                const bookingRowKey = booking._id || booking.id || booking.bookingId || index;
+                const bookingName = booking.type === 'vehicle'
+                  ? (booking.vehicleName || booking.vehicle?.vehicleName || booking.vehicle?.name || 'Vehicle Booking')
+                  : (booking.packageName || booking.package?.name || 'Package Booking');
+                const travelDate = booking.travelDate || booking.date || '';
+
+                return (
                 <motion.tr
-                  key={booking.id}
+                  key={bookingRowKey}
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ delay: index * 0.05 }}
@@ -192,7 +204,7 @@ export default function Bookings() {
                   <td className="py-4 px-4">
                     <div className="flex items-center gap-2">
                       <CalendarCheck className="w-4 h-4 text-primary-500" />
-                      <span className="font-medium text-gray-900 dark:text-white">{booking.id}</span>
+                      <span className="font-medium text-gray-900 dark:text-white">{bookingIdDisplay}</span>
                     </div>
                   </td>
                   <td className="py-4 px-4">
@@ -200,21 +212,23 @@ export default function Bookings() {
                     <p className="text-sm text-gray-500">{booking.customerEmail}</p>
                   </td>
                   <td className="py-4 px-4">
-                    <p className="text-gray-900 dark:text-white">{booking.packageName}</p>
-                    <p className="text-sm text-gray-500">{booking.destination}</p>
+                    <p className="text-gray-900 dark:text-white">{bookingName}</p>
+                    {booking.destination && (
+                      <p className="text-sm text-gray-500">{booking.destination}</p>
+                    )}
                   </td>
                   <td className="py-4 px-4 text-gray-600 dark:text-gray-300">
-                    {new Date(booking.date).toLocaleDateString('en-IN', {
+                    {travelDate ? new Date(travelDate).toLocaleDateString('en-IN', {
                       day: 'numeric',
                       month: 'short',
                       year: 'numeric',
-                    })}
+                    }) : '-'}
                   </td>
                   <td className="py-4 px-4 text-gray-600 dark:text-gray-300">
                     {booking.travelers}
                   </td>
                   <td className="py-4 px-4 font-medium text-gray-900 dark:text-white">
-                    ₹{booking.totalAmount.toLocaleString('en-IN')}
+                    ₹{booking.totalAmount?.toLocaleString('en-IN') || '0'}
                   </td>
                   <td className="py-4 px-4">
                     <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${getStatusColor(booking.status)}`}>
@@ -232,7 +246,8 @@ export default function Bookings() {
                     </div>
                   </td>
                 </motion.tr>
-              ))}
+              );
+              })}
             </tbody>
           </table>
         </div>
@@ -270,7 +285,7 @@ export default function Bookings() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm text-gray-500">Booking ID</p>
-                  <p className="font-medium text-gray-900 dark:text-white">{selectedBooking.id}</p>
+                  <p className="font-medium text-gray-900 dark:text-white">{selectedBooking.bookingId || selectedBooking._id || selectedBooking.id}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Status</p>
@@ -295,27 +310,45 @@ export default function Bookings() {
                   <p className="font-medium text-gray-900 dark:text-white">{selectedBooking.travelers}</p>
                 </div>
                 <div className="col-span-2">
-                  <p className="text-sm text-gray-500">Package</p>
-                  <p className="font-medium text-gray-900 dark:text-white">{selectedBooking.packageName}</p>
+                  <p className="text-sm text-gray-500">{selectedBooking.type === 'vehicle' ? 'Vehicle' : 'Package'}</p>
+                  <p className="font-medium text-gray-900 dark:text-white">
+                    {selectedBooking.type === 'vehicle'
+                      ? (selectedBooking.vehicleName || selectedBooking.vehicle?.vehicleName || selectedBooking.vehicle?.name || 'Vehicle Booking')
+                      : (selectedBooking.packageName || selectedBooking.package?.name || 'Package Booking')}
+                  </p>
                 </div>
-                <div className="col-span-2">
-                  <p className="text-sm text-gray-500">Destination</p>
-                  <p className="font-medium text-gray-900 dark:text-white">{selectedBooking.destination}</p>
-                </div>
+                {selectedBooking.destination && (
+                  <div className="col-span-2">
+                    <p className="text-sm text-gray-500">Destination</p>
+                    <p className="font-medium text-gray-900 dark:text-white">{selectedBooking.destination}</p>
+                  </div>
+                )}
                 <div>
                   <p className="text-sm text-gray-500">Travel Date</p>
                   <p className="font-medium text-gray-900 dark:text-white">
-                    {new Date(selectedBooking.date).toLocaleDateString('en-IN', {
+                    {new Date(selectedBooking.travelDate || selectedBooking.date).toLocaleDateString('en-IN', {
                       day: 'numeric',
                       month: 'short',
                       year: 'numeric',
                     })}
                   </p>
                 </div>
+                {selectedBooking.returnDate && (
+                  <div>
+                    <p className="text-sm text-gray-500">Return Date</p>
+                    <p className="font-medium text-gray-900 dark:text-white">
+                      {new Date(selectedBooking.returnDate).toLocaleDateString('en-IN', {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric',
+                      })}
+                    </p>
+                  </div>
+                )}
                 <div>
                   <p className="text-sm text-gray-500">Total Amount</p>
                   <p className="font-bold text-lg text-secondary-500">
-                    ₹{selectedBooking.totalAmount.toLocaleString('en-IN')}
+                    ₹{(selectedBooking.totalAmount || 0).toLocaleString('en-IN')}
                   </p>
                 </div>
               </div>
@@ -325,13 +358,13 @@ export default function Bookings() {
               {selectedBooking.status === 'pending' && (
                 <>
                   <button
-                    onClick={() => handleStatusChange(selectedBooking.id, 'confirmed')}
+                    onClick={() => handleStatusChange(selectedBooking.bookingId || selectedBooking._id || selectedBooking.id || '', 'confirmed')}
                     className="flex items-center gap-2 px-4 py-2 rounded-xl bg-green-500 text-white hover:bg-green-600"
                   >
                     <Check className="w-4 h-4" /> Approve
                   </button>
                   <button
-                    onClick={() => handleStatusChange(selectedBooking.id, 'cancelled')}
+                    onClick={() => handleStatusChange(selectedBooking.bookingId || selectedBooking._id || selectedBooking.id || '', 'cancelled')}
                     className="flex items-center gap-2 px-4 py-2 rounded-xl bg-red-500 text-white hover:bg-red-600"
                   >
                     <X className="w-4 h-4" /> Reject
@@ -339,7 +372,7 @@ export default function Bookings() {
                 </>
               )}
               <button
-                onClick={() => handleDelete(selectedBooking.id)}
+                onClick={() => handleDelete(selectedBooking.bookingId || selectedBooking._id || selectedBooking.id || '')}
                 className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-red-100 hover:text-red-500 dark:hover:bg-red-900/20"
               >
                 <Trash2 className="w-4 h-4" /> Delete

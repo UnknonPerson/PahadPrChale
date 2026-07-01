@@ -203,12 +203,11 @@ export const deletePackage = asyncHandler(async (req, res) => {
 export const getFeaturedPackages = asyncHandler(async (req, res) => {
   const { limit = 6 } = req.query;
 
+  // Get top-rated active packages, sorted by rating
   const packages = await Package.find({
     isActive: true,
-    featured: true,
   })
-    .populate('destinations', 'name state image')
-    .sort('-rating')
+    .sort('-rating -reviewCount')
     .limit(parseInt(limit));
 
   sendSuccess(res, { packages }, 'Featured packages fetched successfully');

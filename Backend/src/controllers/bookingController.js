@@ -1,5 +1,6 @@
 import Booking from '../models/Booking.js';
 import Package from '../models/Package.js';
+import Vehicle from '../models/Vehicle.js';
 import Activity from '../models/Activity.js';
 import Notification from '../models/Notification.js';
 import asyncHandler from '../middleware/asyncHandler.js';
@@ -12,35 +13,72 @@ import { sendSuccess, sendError, sendPaginated } from '../utils/response.js';
  */
 export const createBooking = asyncHandler(async (req, res) => {
   const {
+    type = 'package',
     packageId,
+    vehicleId,
     customerName,
     customerEmail,
     customerPhone,
     travelDate,
+    returnDate,
     travelers,
+    pickupLocation,
+    driverRequired,
     specialRequests,
+    totalAmount,
   } = req.body;
 
-  // Get package details
-  const pkg = await Package.findById(packageId);
-  if (!pkg) {
-    return sendError(res, 'Package not found', 404);
-  }
+  let packageName = '';
+  let vehicleName = '';
+  let destination = '';
+  let calculatedTotal = totalAmount;
 
-  // Calculate total amount
-  const totalAmount = pkg.price * travelers;
+  if (type === 'package' || packageId) {
+    // Get package details
+    const pkg = await Package.findById(packageId);
+    if (!pkg) {
+      return sendError(res, 'Package not found', 404);
+    }
+    packageName = pkg.name;
+    destination = pkg.destination;
+    calculatedTotal = totalAmount || pkg.price * travelers;
+  } else if (type === 'vehicle' || vehicleId) {
+    // Get vehicle details
+    const vehicle = await Vehicle.findById(vehicleId);
+    if (!vehicle) {
+      return sendError(res, 'Vehicle not found', 404);
+    }
+    vehicleName = vehicle.vehicleName || vehicle.name || 'Vehicle';
+    destination = vehicle.destination || '';
+
+    // Calculate days between pickup and return
+    if (travelDate && returnDate) {
+      const start = new Date(travelDate);
+      const end = new Date(returnDate);
+      const days = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) || 1;
+      calculatedTotal = totalAmount || vehicle.pricePerDay * days;
+    } else {
+      calculatedTotal = totalAmount || vehicle.pricePerDay;
+    }
+  }
 
   const booking = await Booking.create({
     user: req.user?._id || null,
-    package: packageId,
+    type: type || (packageId ? 'package' : 'vehicle'),
+    package: packageId || null,
+    vehicle: vehicleId || null,
     customerName,
     customerEmail,
     customerPhone,
-    packageName: pkg.name,
-    destination: pkg.destination,
+    packageName,
+    vehicleName,
+    destination,
     travelDate,
+    returnDate,
     travelers,
-    totalAmount,
+    pickupLocation,
+    driverRequired: driverRequired || false,
+    totalAmount: calculatedTotal,
     specialRequests: specialRequests || '',
   });
 
@@ -48,11 +86,19 @@ export const createBooking = asyncHandler(async (req, res) => {
   await Activity.create({
     user: req.user?._id || null,
     type: 'booking_created',
-    description: `New booking created: ${pkg.name} for ${travelers} traveler(s)`,
+    description: `New ${type} booking: ${packageName || vehicleName} for ${travelers} ${type === 'vehicle' ? 'passenger(s)' : 'traveler(s)'}`,
     relatedId: booking._id,
     relatedModel: 'Booking',
-    metadata: { packageName: pkg.name, travelers, totalAmount },
+    metadata: {
+      type,
+      name: packageName || vehicleName,
+      travelers,
+      totalAmount: calculatedTotal
+    },
   });
+
+  // Notify admin users (would need admin notification logic)
+  // For now just create the booking
 
   sendSuccess(res, { booking }, 'Booking created successfully', 201);
 });
@@ -173,6 +219,45 @@ export const deleteBooking = asyncHandler(async (req, res) => {
   await booking.deleteOne();
 
   sendSuccess(res, null, 'Booking deleted successfully');
+});
+
+/**
+ * @desc    Cancel booking (User or Admin)
+ * @route   PUT /api/bookings/:id/cancel
+ * @access  Private
+ */
+export const cancelBooking = asyncHandler(async (req, res) => {
+  const booking = await Booking.findById(req.params.id);
+
+  if (!booking) {
+    return sendError(res, 'Booking not found', 404);
+  }
+
+  // Check if user owns this booking or is admin
+  if (booking.user && booking.user.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+    return sendError(res, 'Not authorized to cancel this booking', 403);
+  }
+
+  // Only pending or confirmed bookings can be cancelled
+  if (!['pending', 'confirmed'].includes(booking.status)) {
+    return sendError(res, 'This booking cannot be cancelled', 400);
+  }
+
+  const previousStatus = booking.status;
+  booking.status = 'cancelled';
+  await booking.save();
+
+  // Create activity
+  await Activity.create({
+    user: req.user._id,
+    type: 'booking_cancelled',
+    description: `Booking cancelled: ${booking.packageName || booking.vehicleName}`,
+    relatedId: booking._id,
+    relatedModel: 'Booking',
+    metadata: { previousStatus },
+  });
+
+  sendSuccess(res, { booking }, 'Booking cancelled successfully');
 });
 
 /**

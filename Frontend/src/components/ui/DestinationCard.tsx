@@ -4,11 +4,13 @@ import { Link } from 'react-router-dom';
 import type { Destination } from '../../data/destinations';
 
 interface DestinationCardProps {
-  destination: Destination;
+  destination: Destination & { _id?: string };
   index?: number;
 }
 
 export default function DestinationCard({ destination, index = 0 }: DestinationCardProps) {
+  const destId = destination.id || destination._id;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -16,7 +18,7 @@ export default function DestinationCard({ destination, index = 0 }: DestinationC
       viewport={{ once: true }}
       transition={{ duration: 0.5, delay: index * 0.1 }}
     >
-      <Link to={`/destinations/${destination.id}`}>
+      <Link to={`/destinations/${destId}`}>
         <div className="group glass-card overflow-hidden cursor-pointer hover:shadow-2xl transition-all duration-300">
           <div className="relative h-64 overflow-hidden">
             <img

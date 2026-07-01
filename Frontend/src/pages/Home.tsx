@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { ArrowRight, CircleCheck as CheckCircle, Shield, Headphones, Star, Sparkles } from "lucide-react";
+import { ArrowRight, CircleCheck as CheckCircle, Shield, Headphones, Star, Sparkles, MapPin } from "lucide-react";
 import { Link } from 'react-router-dom';
 import Button from '../components/ui/Button';
 import SectionTitle from '../components/ui/SectionTitle';
@@ -49,6 +49,11 @@ export default function Home() {
   const featuredTestimonials = testimonials
     .filter((t: any) => t.status === 'approved' || t.isFeatured)
     .slice(0, 3);
+
+  // Check if we have any data
+  const hasDestinations = popularDestinations.length > 0;
+  const hasPackages = featuredPackages.length > 0;
+  const hasTestimonials = featuredTestimonials.length > 0;
 
   return (
     <div>
@@ -142,20 +147,30 @@ export default function Home() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {loadingDestinations ? (
               [...Array(4)].map((_, i) => <SkeletonCard key={i} />)
-            ) : (
+            ) : hasDestinations ? (
               popularDestinations.map((dest, index) => (
-                <DestinationCard key={dest.id} destination={dest} index={index} />
+                <DestinationCard key={dest.id || dest._id} destination={dest} index={index} />
               ))
+            ) : (
+              <div className="col-span-full text-center py-12">
+                <div className="w-20 h-20 mx-auto bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center mb-4">
+                  <MapPin className="w-10 h-10 text-gray-400" />
+                </div>
+                <p className="text-gray-500 dark:text-gray-400 text-lg">No destinations available yet</p>
+                <p className="text-gray-400 dark:text-gray-500 text-sm mt-2">Check back soon for exciting places to explore!</p>
+              </div>
             )}
           </div>
-          <div className="text-center mt-12">
-            <Link to="/destinations">
-              <Button variant="outline" size="lg">
-                View All Destinations
-                <ArrowRight className="w-5 h-5" />
-              </Button>
-            </Link>
-          </div>
+          {hasDestinations && (
+            <div className="text-center mt-12">
+              <Link to="/destinations">
+                <Button variant="outline" size="lg">
+                  View All Destinations
+                  <ArrowRight className="w-5 h-5" />
+                </Button>
+              </Link>
+            </div>
+          )}
         </div>
       </section>
 
@@ -170,20 +185,30 @@ export default function Home() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {loadingPackages ? (
               [...Array(3)].map((_, i) => <SkeletonCard key={i} />)
-            ) : (
+            ) : hasPackages ? (
               featuredPackages.map((pkg, index) => (
-                <PackageCard key={pkg.id} pkg={pkg} index={index} />
+                <PackageCard key={pkg.id || pkg._id} pkg={pkg} index={index} />
               ))
+            ) : (
+              <div className="col-span-full text-center py-12">
+                <div className="w-20 h-20 mx-auto bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center mb-4">
+                  <Star className="w-10 h-10 text-gray-400" />
+                </div>
+                <p className="text-gray-500 dark:text-gray-400 text-lg">No packages available yet</p>
+                <p className="text-gray-400 dark:text-gray-500 text-sm mt-2"> exciting tour packages are coming soon!</p>
+              </div>
             )}
           </div>
-          <div className="text-center mt-12">
-            <Link to="/packages">
-              <Button variant="primary" size="lg">
-                Explore All Packages
-                <ArrowRight className="w-5 h-5" />
-              </Button>
-            </Link>
-          </div>
+          {hasPackages && (
+            <div className="text-center mt-12">
+              <Link to="/packages">
+                <Button variant="primary" size="lg">
+                  Explore All Packages
+                  <ArrowRight className="w-5 h-5" />
+                </Button>
+              </Link>
+            </div>
+          )}
         </div>
       </section>
 

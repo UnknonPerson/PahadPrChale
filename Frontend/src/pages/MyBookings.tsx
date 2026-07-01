@@ -11,19 +11,30 @@ import { useBookingActions } from '../hooks/useBookings';
 
 interface Booking {
   _id: string;
-  package: {
+  bookingId?: string;
+  type?: 'package' | 'vehicle';
+  package?: {
     _id: string;
     name: string;
     image: string;
     duration: string;
   };
-  packageName: string;
-  destination: string;
+  vehicle?: {
+    _id: string;
+    vehicleName?: string;
+    name?: string;
+    images?: string[];
+  };
+  packageName?: string;
+  vehicleName?: string;
+  destination?: string;
   travelDate: string;
+  returnDate?: string;
   travelers: number;
   totalAmount: number;
   status: 'pending' | 'confirmed' | 'completed' | 'cancelled';
   specialRequests?: string;
+  pickupLocation?: string;
   createdAt: string;
 }
 
@@ -146,7 +157,17 @@ export default function MyBookings() {
         {/* Bookings List */}
         {filteredBookings.length > 0 ? (
           <div className="space-y-6">
-            {filteredBookings.map((booking, index) => (
+            {filteredBookings.map((booking, index) => {
+              const isVehicle = booking.type === 'vehicle';
+              const bookingImage = isVehicle
+                ? (booking.vehicle?.images?.[0] || 'https://images.pexels.com/photos/1209398/pexels-photo-1209398.jpeg')
+                : (booking.package?.image || 'https://images.pexels.com/photos/2387871/pexels-photo-2387871.jpeg');
+              const bookingName = isVehicle
+                ? (booking.vehicleName || booking.vehicle?.vehicleName || booking.vehicle?.name || 'Vehicle Booking')
+                : (booking.packageName || booking.package?.name || 'Package Booking');
+              const displayId = booking.bookingId || booking._id;
+
+              return (
               <motion.div
                 key={booking._id}
                 initial={{ opacity: 0, y: 20 }}
@@ -157,21 +178,28 @@ export default function MyBookings() {
                 <div className="flex flex-col md:flex-row">
                   <div className="w-full md:w-64 h-48 md:h-auto flex-shrink-0">
                     <img
-                      src={booking.package?.image}
-                      alt={booking.packageName}
+                      src={bookingImage}
+                      alt={bookingName}
                       className="w-full h-full object-cover"
                     />
                   </div>
                   <div className="flex-1 p-6">
                     <div className="flex items-start justify-between mb-4">
                       <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400">
+                            {isVehicle ? 'Vehicle Rental' : 'Tour Package'}
+                          </span>
+                        </div>
                         <h3 className="text-xl font-display font-semibold text-surface-900 dark:text-white">
-                          {booking.packageName}
+                          {bookingName}
                         </h3>
+                        {booking.destination && (
                         <p className="text-surface-500 flex items-center gap-1 mt-1">
                           <MapPin className="w-4 h-4" />
                           {booking.destination}
                         </p>
+                        )}
                       </div>
                       <span className={`flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(booking.status)}`}>
                         {getStatusIcon(booking.status)}
@@ -182,10 +210,10 @@ export default function MyBookings() {
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                       <div>
                         <p className="text-sm text-surface-500">Booking ID</p>
-                        <p className="font-medium text-surface-900 dark:text-white">#{booking._id}</p>
+                        <p className="font-medium text-surface-900 dark:text-white">#{displayId}</p>
                       </div>
                       <div>
-                        <p className="text-sm text-surface-500">Travel Date</p>
+                        <p className="text-sm text-surface-500">{isVehicle ? 'Pickup Date' : 'Travel Date'}</p>
                         <p className="font-medium text-surface-900 dark:text-white flex items-center gap-1">
                           <Calendar className="w-4 h-4" />
                           {new Date(booking.travelDate).toLocaleDateString('en-IN', {
@@ -195,8 +223,20 @@ export default function MyBookings() {
                           })}
                         </p>
                       </div>
+                      {booking.returnDate && (
                       <div>
-                        <p className="text-sm text-surface-500">Travelers</p>
+                        <p className="text-sm text-surface-500">Return Date</p>
+                        <p className="font-medium text-surface-900 dark:text-white">
+                          {new Date(booking.returnDate).toLocaleDateString('en-IN', {
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric',
+                          })}
+                        </p>
+                      </div>
+                      )}
+                      <div>
+                        <p className="text-sm text-surface-500">{isVehicle ? 'Passengers' : 'Travelers'}</p>
                         <p className="font-medium text-surface-900 dark:text-white flex items-center gap-1">
                           <Users className="w-4 h-4" />
                           {booking.travelers}
@@ -227,17 +267,13 @@ export default function MyBookings() {
                             Cancel Booking
                           </button>
                         )}
-                        <Link to={`/bookings/${booking._id}`}>
-                          <button className="btn-primary py-2 px-4 text-sm">
-                            View Details
-                          </button>
-                        </Link>
                       </div>
                     </div>
                   </div>
                 </div>
               </motion.div>
-            ))}
+            );
+            })}
           </div>
         ) : (
           <div className="text-center py-20">

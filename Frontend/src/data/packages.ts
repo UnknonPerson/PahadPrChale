@@ -1,5 +1,6 @@
 export interface Package {
-  id: string;
+  _id?: string;
+  id?: string;
   name: string;
   description: string;
   destination: string;
@@ -19,6 +20,7 @@ export interface Package {
   difficulty: 'Easy' | 'Moderate' | 'Challenging';
   category: 'Adventure' | 'Cultural' | 'Nature' | 'Pilgrimage';
   featured: boolean;
+  isActive?: boolean;
 }
 
 // Fallback package when API fails or database is empty

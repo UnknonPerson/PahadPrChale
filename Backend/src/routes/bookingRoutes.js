@@ -5,6 +5,7 @@ import {
   getBooking,
   updateBookingStatus,
   deleteBooking,
+  cancelBooking,
   getMyBookings,
   getBookingStats,
 } from '../controllers/bookingController.js';
@@ -18,6 +19,7 @@ router.post('/', optionalAuth, createBooking);
 
 // User routes
 router.get('/my', protect, getMyBookings);
+router.put('/:id/cancel', protect, cancelBooking);
 
 // Admin routes
 router.get('/stats', protect, adminOnly, getBookingStats);
