@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import authService from '../services/authService';
+// @ts-expect-error - authService is a JavaScript module without a declaration file
+import authService from '../services/authService.js';
 
 interface User {
   id: string;
@@ -27,10 +28,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
+  console.log("AUTH USER:", user);
+  console.log("IS ADMIN:", user?.role);
+
   const checkAuth = useCallback(async () => {
     try {
       const response = await authService.getCurrentUser();
-      const userData = response.data || response;
+      const userData = response.data.user || response;
       setUser(userData);
     } catch (error) {
       console.error('Auth check failed:', error);
@@ -48,9 +52,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     try {
       const response = await authService.login(email, password);
-      const userData = response.data || response.user || response;
+      const userData = response.data.user || response.user || response;
       setUser(userData);
-      return { success: true, message: 'Login successful' };
+
+      
+      console.log("LOGIN RESPONSE:", response);
+      console.log("USER DATA:", userData);
+
+      return { success: true,
+        message: 'Login successful' };
     } catch (error: any) {
       const message = error.response?.data?.message || error.message || 'Login failed';
       return { success: false, message };
@@ -63,7 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     try {
       const response = await authService.register(name, email, password, phone);
-      const userData = response.data || response.user || response;
+      const userData = response.data.user || response.user || response;
       setUser(userData);
       return { success: true, message: 'Registration successful' };
     } catch (error: any) {
@@ -87,7 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const updateProfile = async (data: Partial<User>): Promise<{ success: boolean; message?: string }> => {
     try {
       const response = await authService.updateProfile(data);
-      const userData = response.data || response;
+      const userData = response.data.user || response;
       setUser(userData);
       return { success: true, message: 'Profile updated successfully' };
     } catch (error: any) {

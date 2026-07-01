@@ -13,6 +13,8 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+// bookingService is a JS module without types; ignore TS missing declaration error
+// @ts-ignore
 import { bookingService } from '../../services/bookingService';
 import { fallbackDashboardStats, fallbackBookings } from '../../data/adminData';
 
@@ -87,7 +89,7 @@ export default function Dashboard() {
     },
     {
       title: 'Revenue',
-      value: `₹${(dashboardStats.revenue / 100000).toFixed(1)}L`,
+      value: `₹${((dashboardStats.revenue ?? 0) / 100000).toFixed(1)}L`,
       icon: IndianRupee,
       change: '+18%',
       changeType: 'increase',
@@ -103,7 +105,7 @@ export default function Dashboard() {
     },
     {
       title: 'Registered Users',
-      value: dashboardStats.registeredUsers.toLocaleString(),
+      value: (dashboardStats.registeredUsers??0).toLocaleString(),
       icon: Users,
       change: '-3%',
       changeType: 'decrease',
@@ -144,7 +146,7 @@ export default function Dashboard() {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {statCards.map((stat, index) => (
+        {(statCards ?? []).map((stat, index) => (
           <motion.div
             key={stat.title}
             initial={{ opacity: 0, y: 20 }}
@@ -227,7 +229,7 @@ export default function Dashboard() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                {recentBookings.map((booking) => (
+                {(recentBookings ?? []).map((booking) => (
                   <tr key={booking.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
                     <td className="py-3 px-2 text-sm font-medium text-gray-900 dark:text-white">
                       {booking.id}
@@ -276,7 +278,7 @@ export default function Dashboard() {
           </div>
 
           <div className="space-y-4">
-            {dashboardStats.recentActivity.map((activity, index) => (
+            {(dashboardStats.recentActivity??[]).map((activity, index) => (
               <div
                 key={index}
                 className="flex items-start gap-3 p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
@@ -325,7 +327,7 @@ export default function Dashboard() {
         </div>
 
         <div className="h-64 flex items-end justify-between gap-4 px-4">
-          {dashboardStats.monthlyRevenue.map((data) => {
+          {(dashboardStats.monthlyRevenue ?? []).map((data) => {
             const maxAmount = Math.max(...dashboardStats.monthlyRevenue.map(d => d.amount));
             const height = (data.amount / maxAmount) * 100;
             return (
