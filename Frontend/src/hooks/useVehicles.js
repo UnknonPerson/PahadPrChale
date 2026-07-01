@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
 import vehicleService from '../services/vehicleService';
-import { fallbackVehicles } from '../data/vehicles';
 
 export function useVehicles(filters = {}) {
   const [vehicles, setVehicles] = useState([]);
@@ -15,7 +14,7 @@ export function useVehicles(filters = {}) {
       setError(null);
       const response = await vehicleService.getAll(filters);
       const data = response.data || response;
-      setVehicles(Array.isArray(data) && data.length > 0 ? data : []);
+      setVehicles(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error('Failed to fetch vehicles:', err);
       setError(err.message || 'Failed to load vehicles');
@@ -39,21 +38,24 @@ export function useVehicle(id) {
 
   useEffect(() => {
     async function fetchVehicle() {
+      if (!id) {
+        setLoading(false);
+        return;
+      }
       try {
         setLoading(true);
         setError(null);
         const response = await vehicleService.getById(id);
-        setVehicle(response.data || response);
+        setVehicle(response.data?.vehicle || response.vehicle || response.data || response);
       } catch (err) {
         console.error('Failed to fetch vehicle:', err);
         setError(err.message || 'Failed to load vehicle');
-        const fallback = fallbackVehicles.find(v => v.id === id);
-        setVehicle(fallback || null);
+        setVehicle(null);
       } finally {
         setLoading(false);
       }
     }
-    if (id) fetchVehicle();
+    fetchVehicle();
   }, [id]);
 
   return { vehicle, loading, error };

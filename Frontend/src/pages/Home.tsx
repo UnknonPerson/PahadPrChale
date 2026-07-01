@@ -9,7 +9,7 @@ import TestimonialCard from '../components/ui/TestimonialCard';
 import SearchBar from '../components/ui/SearchBar';
 import { SkeletonCard } from '../components/ui/LoadingSpinner';
 import { useDestinations } from '../hooks/useDestinations';
-import { usePackages } from '../hooks/usePackages';
+import { useFeaturedPackages } from '../hooks/usePackages';
 import { useTestimonials } from '../hooks/useTestimonials';
 
 const features = [
@@ -37,12 +37,18 @@ const features = [
 
 export default function Home() {
   const { destinations, loading: loadingDestinations } = useDestinations();
-  const { packages, loading: loadingPackages } = usePackages();
+  const { packages: featuredPackages, loading: loadingPackages } = useFeaturedPackages(3);
   const { testimonials, loading: loadingTestimonials } = useTestimonials();
 
-  const featuredPackages = packages.filter((p) => p.featured).slice(0, 3);
-  const popularDestinations = destinations.slice(0, 4);
-  const featuredTestimonials = testimonials.slice(0, 3);
+  // Get top destinations by rating
+  const popularDestinations = [...destinations]
+    .sort((a: any, b: any) => (b.rating || 0) - (a.rating || 0))
+    .slice(0, 4);
+
+  // Get featured testimonials
+  const featuredTestimonials = testimonials
+    .filter((t: any) => t.status === 'approved' || t.isFeatured)
+    .slice(0, 3);
 
   return (
     <div>

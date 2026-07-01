@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
 import bookingService from '../services/bookingService';
-import { fallbackBookings } from '../data/adminData';
 
 export function useMyBookings() {
   const [bookings, setBookings] = useState([]);
@@ -13,7 +12,7 @@ export function useMyBookings() {
       setError(null);
       const response = await bookingService.getMy();
       const data = response.data || response;
-      setBookings(data || []);
+      setBookings(data?.bookings || data || []);
     } catch (err) {
       console.error('Failed to fetch bookings:', err);
       setError(err.message || 'Failed to load bookings');
@@ -41,11 +40,11 @@ export function useAllBookings() {
       setError(null);
       const response = await bookingService.getAll();
       const data = response.data || response;
-      setBookings(data.length > 0 ? data : fallbackBookings);
+      setBookings(Array.isArray(data) ? data : data?.bookings || []);
     } catch (err) {
       console.error('Failed to fetch bookings:', err);
       setError(err.message || 'Failed to load bookings');
-      setBookings(fallbackBookings);
+      setBookings([]);
     } finally {
       setLoading(false);
     }

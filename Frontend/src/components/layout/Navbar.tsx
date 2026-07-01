@@ -34,6 +34,8 @@ const navLinks = [
 const userMenuItems = [
   { name: 'My Profile', path: '/profile', icon: User },
   { name: 'My Bookings', path: '/bookings/my', icon: Calendar },
+  { name: 'My Custom Tours', path: '/my-custom-tours', icon: MapPin },
+  { name: 'My Messages', path: '/my-messages', icon: Phone },
   { name: 'Wishlist', path: '/wishlist', icon: Heart },
   { name: 'Settings', path: '/settings', icon: Settings },
 ];

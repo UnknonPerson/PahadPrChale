@@ -55,6 +55,15 @@ const customTourRequestSchema = new mongoose.Schema(
       enum: ['none', 'breakfast', 'half_board', 'full_board'],
       default: 'breakfast',
     },
+    activities: [{
+      type: String,
+      trim: true,
+    }],
+    pickupLocation: {
+      type: String,
+      trim: true,
+      default: '',
+    },
     specialRequests: {
       type: String,
       trim: true,

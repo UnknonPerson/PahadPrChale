@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
 import packageService from '../services/packageService';
-import { fallbackPackages } from '../data/packages';
 
 export function usePackages(filters = {}) {
   const [packages, setPackages] = useState([]);
@@ -15,7 +14,7 @@ export function usePackages(filters = {}) {
       setError(null);
       const response = await packageService.getAll(filters);
       const data = response.data || response;
-      setPackages(Array.isArray(data) && data.length > 0 ? data : []);
+      setPackages(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error('Failed to fetch packages:', err);
       setError(err.message || 'Failed to load packages');
@@ -39,24 +38,54 @@ export function usePackage(id) {
 
   useEffect(() => {
     async function fetchPackage() {
+      if (!id) {
+        setLoading(false);
+        return;
+      }
       try {
         setLoading(true);
         setError(null);
         const response = await packageService.getById(id);
-        setPkg(response.data || response);
+        setPkg(response.data?.package || response.package || response.data || response);
       } catch (err) {
         console.error('Failed to fetch package:', err);
         setError(err.message || 'Failed to load package');
-        const fallback = fallbackPackages.find(p => p.id === id);
-        setPkg(fallback || null);
+        setPkg(null);
       } finally {
         setLoading(false);
       }
     }
-    if (id) fetchPackage();
+    fetchPackage();
   }, [id]);
 
   return { pkg, loading, error };
+}
+
+export function useFeaturedPackages(limit = 4) {
+  const [packages, setPackages] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    async function fetchFeatured() {
+      try {
+        setLoading(true);
+        setError(null);
+        const response = await packageService.getFeatured();
+        const data = response.data?.packages || response.packages || response.data || response;
+        setPackages(Array.isArray(data) ? data.slice(0, limit) : []);
+      } catch (err) {
+        console.error('Failed to fetch featured packages:', err);
+        setError(err.message || 'Failed to load featured packages');
+        setPackages([]);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchFeatured();
+  }, [limit]);
+
+  return { packages, loading, error };
 }
 
 export function usePackageActions() {

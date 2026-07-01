@@ -283,3 +283,26 @@ export const exportActivities = (activities: any[], format: 'csv' | 'json' = 'cs
     exportToJSON(data, 'activities');
   }
 };
+
+/**
+ * Export reviews data
+ */
+export const exportReviews = (reviews: any[], format: 'csv' | 'json' = 'csv') => {
+  const data = reviews.map((r) => ({
+    ReviewID: r._id,
+    UserName: r.user?.name || '',
+    UserEmail: r.user?.email || '',
+    PackageName: r.package?.name || '',
+    Rating: r.rating,
+    Comment: r.comment?.substring(0, 200) || '',
+    Status: r.status,
+    IsVerified: r.isVerified ? 'Yes' : 'No',
+    CreatedAt: formatDate(r.createdAt),
+  }));
+
+  if (format === 'csv') {
+    exportToCSV(data, 'reviews');
+  } else {
+    exportToJSON(data, 'reviews');
+  }
+};

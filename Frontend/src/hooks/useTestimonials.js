@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
 import testimonialService from '../services/testimonialService';
-import { fallbackTestimonials } from '../data/testimonials';
 
 export function useTestimonials() {
   const [testimonials, setTestimonials] = useState([]);
@@ -13,11 +12,11 @@ export function useTestimonials() {
       setError(null);
       const response = await testimonialService.getAll();
       const data = response.data || response;
-      setTestimonials(data.length > 0 ? data : fallbackTestimonials);
+      setTestimonials(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error('Failed to fetch testimonials:', err);
       setError(err.message || 'Failed to load testimonials');
-      setTestimonials(fallbackTestimonials);
+      setTestimonials([]);
     } finally {
       setLoading(false);
     }

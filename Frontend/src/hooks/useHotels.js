@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
 import hotelService from '../services/hotelService';
-import { fallbackHotels } from '../data/hotels';
 
 export function useHotels(filters = {}) {
   const [hotels, setHotels] = useState([]);
@@ -15,7 +14,7 @@ export function useHotels(filters = {}) {
       setError(null);
       const response = await hotelService.getAll(filters);
       const data = response.data || response;
-      setHotels(Array.isArray(data) && data.length > 0 ? data : []);
+      setHotels(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error('Failed to fetch hotels:', err);
       setError(err.message || 'Failed to load hotels');
@@ -39,21 +38,24 @@ export function useHotel(id) {
 
   useEffect(() => {
     async function fetchHotel() {
+      if (!id) {
+        setLoading(false);
+        return;
+      }
       try {
         setLoading(true);
         setError(null);
         const response = await hotelService.getById(id);
-        setHotel(response.data || response);
+        setHotel(response.data?.hotel || response.hotel || response.data || response);
       } catch (err) {
         console.error('Failed to fetch hotel:', err);
         setError(err.message || 'Failed to load hotel');
-        const fallback = fallbackHotels.find(h => h.id === id);
-        setHotel(fallback || null);
+        setHotel(null);
       } finally {
         setLoading(false);
       }
     }
-    if (id) fetchHotel();
+    fetchHotel();
   }, [id]);
 
   return { hotel, loading, error };

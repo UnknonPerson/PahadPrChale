@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { MapPin, Phone, Mail, Clock, Send, MessageSquare, CircleCheck as CheckCircle } from 'lucide-react';
+import { MapPin, Phone, Mail, Clock, Send, MessageSquare, CircleCheck as CheckCircle, CircleAlert as AlertCircle } from 'lucide-react';
 import Button from '../components/ui/Button';
 import SectionTitle from '../components/ui/SectionTitle';
+import { useMessageActions } from '../hooks/useMessages';
+import { useAuth } from '../context/AuthContext';
 
 const contactInfo = [
   {
@@ -47,19 +49,43 @@ const faqs = [
 ];
 
 export default function Contact() {
+  const { user } = useAuth();
+  const { create } = useMessageActions();
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
+    name: user?.name || '',
+    email: user?.email || '',
+    phone: user?.phone || '',
     subject: '',
     message: '',
+    priority: 'normal',
   });
   const [submitted, setSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [expandedFaq, setExpandedFaq] = useState<number | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitted(true);
+    setError(null);
+
+    if (!formData.subject || !formData.message) {
+      setError('Please fill in all required fields');
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      await create({
+        subject: formData.subject,
+        message: formData.message,
+        priority: formData.priority,
+      });
+      setSubmitted(true);
+    } catch (err: any) {
+      setError(err.message || 'Failed to send message. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleChange = (
@@ -148,18 +174,19 @@ export default function Contact() {
                     Message Sent!
                   </h3>
                   <p className="text-gray-600 dark:text-gray-300 mb-6">
-                    Thank you for contacting us. We&apos;ll respond shortly.
+                    Thank you for contacting us. We&apos;ll respond within 24-48 hours.
                   </p>
                   <Button
                     variant="primary"
                     onClick={() => {
                       setSubmitted(false);
                       setFormData({
-                        name: '',
-                        email: '',
-                        phone: '',
+                        name: user?.name || '',
+                        email: user?.email || '',
+                        phone: user?.phone || '',
                         subject: '',
                         message: '',
+                        priority: 'normal',
                       });
                     }}
                   >
@@ -168,33 +195,39 @@ export default function Contact() {
                 </div>
               ) : (
                 <form onSubmit={handleSubmit} className="glass-card p-6 space-y-6">
+                  {error && (
+                    <div className="flex items-center gap-3 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl text-red-700 dark:text-red-400">
+                      <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                      <p>{error}</p>
+                    </div>
+                  )}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                       <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-2">
-                        Full Name *
+                        Full Name
                       </label>
                       <input
                         type="text"
                         name="name"
                         value={formData.name}
                         onChange={handleChange}
-                        className="input-field"
+                        className="input-field bg-gray-100 dark:bg-gray-700"
                         placeholder="Your name"
-                        required
+                        disabled={!!user}
                       />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-2">
-                        Email Address *
+                        Email Address
                       </label>
                       <input
                         type="email"
                         name="email"
                         value={formData.email}
                         onChange={handleChange}
-                        className="input-field"
+                        className="input-field bg-gray-100 dark:bg-gray-700"
                         placeholder="your@email.com"
-                        required
+                        disabled={!!user}
                       />
                     </div>
                     <div>
@@ -212,23 +245,33 @@ export default function Contact() {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-2">
-                        Subject *
+                        Priority
                       </label>
                       <select
-                        name="subject"
-                        value={formData.subject}
+                        name="priority"
+                        value={formData.priority}
                         onChange={handleChange}
                         className="input-field"
-                        required
                       >
-                        <option value="">Select subject</option>
-                        <option value="booking">Tour Booking Inquiry</option>
-                        <option value="custom">Custom Tour Request</option>
-                        <option value="support">Customer Support</option>
-                        <option value="feedback">Feedback</option>
-                        <option value="other">Other</option>
+                        <option value="low">Low</option>
+                        <option value="normal">Normal</option>
+                        <option value="high">High</option>
                       </select>
                     </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-2">
+                      Subject *
+                    </label>
+                    <input
+                      type="text"
+                      name="subject"
+                      value={formData.subject}
+                      onChange={handleChange}
+                      className="input-field"
+                      placeholder="What is your message about?"
+                      required
+                    />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-2">
@@ -243,9 +286,18 @@ export default function Contact() {
                       required
                     />
                   </div>
-                  <Button type="submit" variant="primary" className="w-full">
-                    <Send className="w-5 h-5" />
-                    Send Message
+                  <Button type="submit" variant="primary" className="w-full" disabled={isSubmitting}>
+                    {isSubmitting ? (
+                      <span className="flex items-center gap-2">
+                        <span className="inline-block animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full" />
+                        Sending...
+                      </span>
+                    ) : (
+                      <>
+                        <Send className="w-5 h-5" />
+                        Send Message
+                      </>
+                    )}
                   </Button>
                 </form>
               )}

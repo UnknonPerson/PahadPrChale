@@ -40,6 +40,9 @@ import Messages from './pages/admin/Messages';
 import AdminSettings from './pages/admin/Settings';
 import Activities from './pages/admin/Activities';
 import CustomTours from './pages/admin/CustomTours';
+import CustomTourRequest from './pages/CustomTourRequest';
+import MyCustomTours from './pages/MyCustomTours';
+import MyMessages from './pages/MyMessages';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 
 export default function App() {
@@ -66,6 +69,7 @@ export default function App() {
                     <Route path="trip-planner" element={<TripPlanner />} />
                     <Route path="about" element={<About />} />
                     <Route path="contact" element={<Contact />} />
+                    <Route path="custom-tour-request" element={<CustomTourRequest />} />
                     <Route path="*" element={<NotFound />} />
                   </Route>
 
@@ -115,6 +119,26 @@ export default function App() {
                     }
                   >
                     <Route index element={<UserSettings />} />
+                  </Route>
+                  <Route
+                    path="/my-custom-tours"
+                    element={
+                      <ProtectedRoute>
+                        <Layout />
+                      </ProtectedRoute>
+                    }
+                  >
+                    <Route index element={<MyCustomTours />} />
+                  </Route>
+                  <Route
+                    path="/my-messages"
+                    element={
+                      <ProtectedRoute>
+                        <Layout />
+                      </ProtectedRoute>
+                    }
+                  >
+                    <Route index element={<MyMessages />} />
                   </Route>
 
                   {/* Admin Routes */}

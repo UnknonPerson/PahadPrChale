@@ -16,6 +16,7 @@ import messageRoutes from './routes/messageRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
 import activityRoutes from './routes/activityRoutes.js';
 import customTourRequestRoutes from './routes/customTourRequestRoutes.js';
+import reviewRoutes from './routes/reviewRoutes.js';
 
 // Import error handling middleware
 import { errorHandler, notFound } from './middleware/errorHandler.js';
@@ -55,6 +56,7 @@ app.use('/api/messages', messageRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/activities', activityRoutes);
 app.use('/api/custom-tours', customTourRequestRoutes);
+app.use('/api/reviews', reviewRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -84,6 +86,7 @@ app.get('/api', (req, res) => {
       notifications: '/api/notifications',
       activities: '/api/activities',
       customTours: '/api/custom-tours',
+      reviews: '/api/reviews',
     },
   });
 });
