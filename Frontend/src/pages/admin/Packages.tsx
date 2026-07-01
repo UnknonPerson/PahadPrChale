@@ -233,7 +233,7 @@ export default function PackagesManagement() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredPackages.map((pkg, index) => (
+          {(filteredPackages ?? []).map((pkg, index) => (
             <motion.div
               key={pkg.id}
               initial={{ opacity: 0, y: 20 }}
