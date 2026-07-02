@@ -1,25 +1,14 @@
 import api from './api';
 
-export const destinationService = {
-  async getAll() {
-    return api.get('/destinations');
-  },
-
-  async getById(id) {
-    return api.get(`/destinations/${id}`);
-  },
-
-  async create(data) {
-    return api.post('/destinations', data);
-  },
-
-  async update(id, data) {
-    return api.put(`/destinations/${id}`, data);
-  },
-
-  async delete(id) {
-    return api.delete(`/destinations/${id}`);
-  },
+const destinationService = {
+  getAll: (params = {}) => api.get('/destinations', { params }),
+  getById: (id) => api.get(`/destinations/${id}`),
+  getFeatured: (limit = 6) => api.get('/destinations/featured', { params: { limit } }),
+  getStates: () => api.get('/destinations/states'),
+  create: (data) => api.post('/destinations', data),
+  update: (id, data) => api.put(`/destinations/${id}`, data),
+  delete: (id) => api.delete(`/destinations/${id}`),
+  permanentDelete: (id) => api.delete(`/destinations/${id}/permanent`),
 };
 
 export default destinationService;

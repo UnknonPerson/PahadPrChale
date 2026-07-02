@@ -1,33 +1,14 @@
 import api from './api';
 
-export const tripService = {
-  async getAll() {
-    return api.get('/trips');
-  },
-
-  async getMy() {
-    return api.get('/trips/my');
-  },
-
-  async getById(id) {
-    return api.get(`/trips/${id}`);
-  },
-
-  async create(data) {
-    return api.post('/trips', data);
-  },
-
-  async update(id, data) {
-    return api.put(`/trips/${id}`, data);
-  },
-
-  async delete(id) {
-    return api.delete(`/trips/${id}`);
-  },
-
-  async submitTripPlanner(data) {
-    return api.post('/trips/planner', data);
-  },
+const tripService = {
+  create: (data) => api.post('/trips', data),
+  getMy: () => api.get('/trips/my'),
+  getAll: (params = {}) => api.get('/trips', { params }),
+  getById: (id) => api.get(`/trips/${id}`),
+  getStats: () => api.get('/trips/stats'),
+  update: (id, data) => api.put(`/trips/${id}`, data),
+  cancel: (id) => api.put(`/trips/${id}/cancel`),
+  delete: (id) => api.delete(`/trips/${id}`),
 };
 
 export default tripService;

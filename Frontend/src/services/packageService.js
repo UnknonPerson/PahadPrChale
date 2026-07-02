@@ -1,29 +1,13 @@
 import api from './api';
 
-export const packageService = {
-  async getAll(params) {
-    return api.get('/packages', { params });
-  },
-
-  async getById(id) {
-    return api.get(`/packages/${id}`);
-  },
-
-  async getFeatured() {
-    return api.get('/packages/featured');
-  },
-
-  async create(data) {
-    return api.post('/packages', data);
-  },
-
-  async update(id, data) {
-    return api.put(`/packages/${id}`, data);
-  },
-
-  async delete(id) {
-    return api.delete(`/packages/${id}`);
-  },
+const packageService = {
+  getAll: (params = {}) => api.get('/packages', { params }),
+  getById: (id) => api.get(`/packages/${id}`),
+  getFeatured: (limit = 6) => api.get('/packages/featured', { params: { limit } }),
+  search: (q, limit = 10) => api.get('/packages/search', { params: { q, limit } }),
+  create: (data) => api.post('/packages', data),
+  update: (id, data) => api.put(`/packages/${id}`, data),
+  delete: (id) => api.delete(`/packages/${id}`),
 };
 
 export default packageService;

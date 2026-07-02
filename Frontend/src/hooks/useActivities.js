@@ -1,88 +1,64 @@
 import { useState, useEffect, useCallback } from 'react';
 import activityService from '../services/activityService';
 
-export function useActivities(params = {}) {
-  const [activities, setActivities] = useState([]);
+export function useActivityStats() {
+  const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [pagination, setPagination] = useState(null);
+  useEffect(() => {
+    activityService.getStats()
+      .then((res) => setStats(res?.data?.stats ?? res?.stats ?? null))
+      .catch(() => setStats(null))
+      .finally(() => setLoading(false));
+  }, []);
+  return { stats, loading };
+}
 
-  const fetchActivities = useCallback(async () => {
+export function useActivities(filters = {}) {
+  const [activities, setActivities] = useState([]);
+  const [loading, setLoading]       = useState(true);
+  const [error, setError]           = useState(null);
+
+  const filtersKey = JSON.stringify(filters);
+
+  const fetch = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await activityService.getAll(params);
-      const data = response.data || response;
-      setActivities(data.activities || data || []);
-      setPagination(data.pagination || null);
+      const res = await activityService.getAll(filters);
+      setActivities(res?.data ?? (Array.isArray(res) ? res : []));
     } catch (err) {
-      console.error('Failed to fetch activities:', err);
-      setError(err.message || 'Failed to load activities');
+      setError(err?.response?.data?.message || 'Failed to load activities');
       setActivities([]);
     } finally {
       setLoading(false);
     }
-  }, [params?.page, params?.limit, params?.type, params?.user]);
+  }, [filtersKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => {
-    fetchActivities();
-  }, [fetchActivities]);
+  useEffect(() => { fetch(); }, [fetch]);
 
-  return { activities, loading, error, pagination, refetch: fetchActivities };
+  return { activities, loading, error, refetch: fetch };
 }
 
 export function useRecentActivities(limit = 10) {
   const [activities, setActivities] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [loading, setLoading]       = useState(true);
+  const [error, setError]           = useState(null);
 
-  const fetchActivities = useCallback(async () => {
+  const fetch = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await activityService.getRecent(limit);
-      const data = response.data || response;
-      setActivities(data.activities || data || []);
+      const res = await activityService.getRecent(limit);
+      setActivities(res?.data?.activities ?? res?.activities ?? res?.data ?? []);
     } catch (err) {
-      console.error('Failed to fetch recent activities:', err);
-      setError(err.message || 'Failed to load activities');
+      setError(err?.response?.data?.message || 'Failed to load activities');
       setActivities([]);
     } finally {
       setLoading(false);
     }
   }, [limit]);
 
-  useEffect(() => {
-    fetchActivities();
-  }, [fetchActivities]);
+  useEffect(() => { fetch(); }, [fetch]);
 
-  return { activities, loading, error, refetch: fetchActivities };
-}
-
-export function useActivityStats() {
-  const [stats, setStats] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  const fetchStats = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await activityService.getStats();
-      const data = response.data || response;
-      setStats(data.stats || data);
-    } catch (err) {
-      console.error('Failed to fetch activity stats:', err);
-      setError(err.message || 'Failed to load activity stats');
-      setStats(null);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchStats();
-  }, [fetchStats]);
-
-  return { stats, loading, error, refetch: fetchStats };
+  return { activities, loading, error, refetch: fetch };
 }

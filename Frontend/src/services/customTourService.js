@@ -1,37 +1,13 @@
 import api from './api';
 
-export const customTourService = {
-  async create(data) {
-    return api.post('/custom-tours', data);
-  },
-
-  async getMy(params) {
-    return api.get('/custom-tours/my', { params });
-  },
-
-  async getById(id) {
-    return api.get(`/custom-tours/${id}`);
-  },
-
-  async getAll(params) {
-    return api.get('/custom-tours', { params });
-  },
-
-  async updateStatus(id, data) {
-    return api.put(`/custom-tours/${id}/status`, data);
-  },
-
-  async cancel(id) {
-    return api.put(`/custom-tours/${id}/cancel`);
-  },
-
-  async delete(id) {
-    return api.delete(`/custom-tours/${id}`);
-  },
-
-  async getStats() {
-    return api.get('/custom-tours/stats');
-  },
+const customTourService = {
+  create: (data) => api.post('/custom-tours', data),
+  getMy: (params = {}) => api.get('/custom-tours/my', { params }),
+  getAll: (params = {}) => api.get('/custom-tours', { params }),
+  getById: (id) => api.get(`/custom-tours/${id}`),
+  getStats: () => api.get('/custom-tours/stats'),
+  updateStatus: (id, data) => api.put(`/custom-tours/${id}/status`, data),
+  cancel: (id) => api.put(`/custom-tours/${id}/cancel`),
 };
 
 export default customTourService;

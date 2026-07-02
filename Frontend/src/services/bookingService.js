@@ -1,41 +1,14 @@
 import api from './api';
 
-export const bookingService = {
-  async getAll() {
-    return api.get('/bookings');
-  },
-
-  async getMy() {
-    return api.get('/bookings/my');
-  },
-
-  async getById(id) {
-    return api.get(`/bookings/${id}`);
-  },
-
-  async create(data) {
-    return api.post('/bookings', data);
-  },
-
-  async update(id, data) {
-    return api.put(`/bookings/${id}`, data);
-  },
-
-  async updateStatus(id, status) {
-    return api.put(`/bookings/${id}/status`, { status });
-  },
-
-  async cancel(id) {
-    return api.put(`/bookings/${id}/cancel`);
-  },
-
-  async delete(id) {
-    return api.delete(`/bookings/${id}`);
-  },
-
-  async getStats() {
-    return api.get('/bookings/stats');
-  },
+const bookingService = {
+  create: (data) => api.post('/bookings', data),
+  getAll: (params = {}) => api.get('/bookings', { params }),
+  getMy: () => api.get('/bookings/my'),
+  getById: (id) => api.get(`/bookings/${id}`),
+  getStats: () => api.get('/bookings/stats'),
+  updateStatus: (id, status, reason) => api.put(`/bookings/${id}/status`, { status, reason }),
+  cancel: (id) => api.put(`/bookings/${id}/cancel`),
+  delete: (id) => api.delete(`/bookings/${id}`),
 };
 
 export default bookingService;

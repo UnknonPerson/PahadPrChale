@@ -1,37 +1,14 @@
 import api from './api';
 
-export const reviewService = {
-  async create(data) {
-    return api.post('/reviews', data);
-  },
-
-  async getByPackage(packageId, params) {
-    return api.get(`/reviews/package/${packageId}`, { params });
-  },
-
-  async getMy() {
-    return api.get('/reviews/my');
-  },
-
-  async getAll(params) {
-    return api.get('/reviews', { params });
-  },
-
-  async getStats() {
-    return api.get('/reviews/stats');
-  },
-
-  async updateStatus(id, status) {
-    return api.put(`/reviews/${id}/status`, { status });
-  },
-
-  async delete(id) {
-    return api.delete(`/reviews/${id}`);
-  },
-
-  async canReview(bookingId) {
-    return api.get(`/reviews/can-review/${bookingId}`);
-  },
+const reviewService = {
+  getAll: (params = {}) => api.get('/reviews', { params }),
+  getByPackage: (packageId) => api.get(`/reviews/package/${packageId}`),
+  getMy: () => api.get('/reviews/my'),
+  getStats: () => api.get('/reviews/stats'),
+  canReview: (bookingId) => api.get(`/reviews/can-review/${bookingId}`),
+  create: (data) => api.post('/reviews', data),
+  updateStatus: (id, status) => api.put(`/reviews/${id}/status`, { status }),
+  delete: (id) => api.delete(`/reviews/${id}`),
 };
 
 export default reviewService;

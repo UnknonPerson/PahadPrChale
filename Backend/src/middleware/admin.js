@@ -1,25 +1,12 @@
-import User from '../models/User.js';
+import { sendError } from '../utils/response.js';
 
 /**
- * Restrict access to admin users only
- * Must be used after protect middleware
+ * Require admin role. Must be chained AFTER protect middleware.
+ * protect already fetches the user — no extra DB call needed.
  */
-export const adminOnly = async (req, res, next) => {
-  try {
-    const user = await User.findById(req.user._id);
-
-    if (!user || user.role !== 'admin') {
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied. Admin privileges required.',
-      });
-    }
-
-    next();
-  } catch (error) {
-    return res.status(403).json({
-      success: false,
-      message: 'Access denied. Admin privileges required.',
-    });
+export const adminOnly = (req, res, next) => {
+  if (!req.user || req.user.role !== 'admin') {
+    return sendError(res, 'Admin access required', 403);
   }
+  next();
 };

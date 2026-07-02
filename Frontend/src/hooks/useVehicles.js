@@ -1,46 +1,39 @@
 import { useState, useEffect, useCallback } from 'react';
 import vehicleService from '../services/vehicleService';
 
-// Normalize vehicle images: supports both old string-array and new {url,publicId}
-function normalizeVehicle(vehicle) {
-  if (!vehicle) return vehicle;
-  const images = (vehicle.images || []).map((img) =>
-    typeof img === 'string' ? img : img?.url || ''
-  ).filter(Boolean);
-  return {
-    ...vehicle,
-    image: images[0] || vehicle.image || '',
-    images, // flat string array
-  };
+function normalizeImages(images = []) {
+  return images.map((img) => (typeof img === 'string' ? img : img?.url || '')).filter(Boolean);
 }
 
-export function useVehicles(filters = {}) {
+function normalizeVehicle(v) {
+  if (!v) return v;
+  const imgs = normalizeImages(v.images);
+  return { ...v, image: imgs[0] || '', images: imgs };
+}
+
+export function useVehicles(initialFilters = {}) {
   const [vehicles, setVehicles] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [loading, setLoading]   = useState(true);
+  const [error, setError]       = useState(null);
 
-  const filtersKey = JSON.stringify(filters);
+  const filtersKey = JSON.stringify(initialFilters);
 
-  const fetchVehicles = useCallback(async () => {
+  const fetchVehicles = useCallback(async (filters = initialFilters) => {
     try {
       setLoading(true);
       setError(null);
-      const response = await vehicleService.getAll(filters);
-      const data = response.data || response;
-      const raw = Array.isArray(data) ? data : (data?.vehicles || []);
+      const res = await vehicleService.getAll(filters);
+      const raw = res?.data ?? (Array.isArray(res) ? res : []);
       setVehicles(raw.map(normalizeVehicle));
     } catch (err) {
-      console.error('Failed to fetch vehicles:', err);
-      setError(err.message || 'Failed to load vehicles');
+      setError(err?.response?.data?.message || 'Failed to load vehicles');
       setVehicles([]);
     } finally {
       setLoading(false);
     }
-  }, [filtersKey]);
+  }, [filtersKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => {
-    fetchVehicles();
-  }, [fetchVehicles]);
+  useEffect(() => { fetchVehicles(); }, [fetchVehicles]);
 
   return { vehicles, loading, error, refetch: fetchVehicles };
 }
@@ -48,43 +41,33 @@ export function useVehicles(filters = {}) {
 export function useVehicle(id) {
   const [vehicle, setVehicle] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError]     = useState(null);
 
   useEffect(() => {
-    async function fetchVehicle() {
-      if (!id) { setLoading(false); return; }
+    if (!id) { setLoading(false); return; }
+    let cancelled = false;
+    (async () => {
       try {
         setLoading(true);
-        setError(null);
-        const response = await vehicleService.getById(id);
-        const raw = response.data?.vehicle || response.vehicle || response.data || response;
-        setVehicle(normalizeVehicle(raw));
+        const res = await vehicleService.getById(id);
+        const raw = res?.data?.vehicle ?? res?.vehicle ?? res?.data ?? null;
+        if (!cancelled) setVehicle(normalizeVehicle(raw));
       } catch (err) {
-        console.error('Failed to fetch vehicle:', err);
-        setError(err.message || 'Failed to load vehicle');
-        setVehicle(null);
+        if (!cancelled) setError(err?.response?.data?.message || 'Vehicle not found');
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
-    }
-    fetchVehicle();
+    })();
+    return () => { cancelled = true; };
   }, [id]);
 
   return { vehicle, loading, error };
 }
 
 export function useVehicleActions() {
-  const create = async (data) => {
-    const response = await vehicleService.create(data);
-    return response.data || response;
+  return {
+    create: (data) => vehicleService.create(data),
+    update: (id, data) => vehicleService.update(id, data),
+    remove: (id) => vehicleService.delete(id),
   };
-  const update = async (id, data) => {
-    const response = await vehicleService.update(id, data);
-    return response.data || response;
-  };
-  const remove = async (id) => {
-    const response = await vehicleService.delete(id);
-    return response.data || response;
-  };
-  return { create, update, remove };
 }

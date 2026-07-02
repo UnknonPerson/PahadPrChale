@@ -1,54 +1,61 @@
 import { useState, useEffect, useCallback } from 'react';
 import tripService from '../services/tripService';
 
-export function useMyTrips() {
+export function useTrips() {
   const [trips, setTrips] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const fetchTrips = useCallback(async () => {
+  const fetch = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await tripService.getMy();
-      const data = response.data || response;
-      setTrips(data || []);
+      const res = await tripService.getMy();
+      setTrips(res?.data ?? (Array.isArray(res) ? res : []));
     } catch (err) {
-      console.error('Failed to fetch trips:', err);
-      setError(err.message || 'Failed to load trips');
+      setError(err?.response?.data?.message || 'Failed to load trips');
       setTrips([]);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => {
-    fetchTrips();
-  }, [fetchTrips]);
+  useEffect(() => { fetch(); }, [fetch]);
 
-  return { trips, loading, error, refetch: fetchTrips };
+  return { trips, loading, error, refetch: fetch };
+}
+
+export function useAllTrips(filters = {}) {
+  const [trips, setTrips] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const filtersKey = JSON.stringify(filters);
+
+  const fetch = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await tripService.getAll(filters);
+      setTrips(res?.data ?? (Array.isArray(res) ? res : []));
+    } catch (err) {
+      setError(err?.response?.data?.message || 'Failed to load trips');
+      setTrips([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [filtersKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => { fetch(); }, [fetch]);
+
+  return { trips, loading, error, refetch: fetch };
 }
 
 export function useTripActions() {
-  const submitTripPlanner = async (data) => {
-    const response = await tripService.submitTripPlanner(data);
-    return response.data || response;
+  return {
+    create: (data) => tripService.create(data),
+    update: (id, data) => tripService.update(id, data),
+    cancel: (id) => tripService.cancel(id),
+    remove: (id) => tripService.delete(id),
   };
-
-  const create = async (data) => {
-    const response = await tripService.create(data);
-    return response.data || response;
-  };
-
-  const update = async (id, data) => {
-    const response = await tripService.update(id, data);
-    return response.data || response;
-  };
-
-  const remove = async (id) => {
-    const response = await tripService.delete(id);
-    return response.data || response;
-  };
-
-  return { submitTripPlanner, create, update, remove };
 }

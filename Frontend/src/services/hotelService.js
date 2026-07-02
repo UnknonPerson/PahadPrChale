@@ -1,25 +1,12 @@
 import api from './api';
 
-export const hotelService = {
-  async getAll(params) {
-    return api.get('/hotels', { params });
-  },
-
-  async getById(id) {
-    return api.get(`/hotels/${id}`);
-  },
-
-  async create(data) {
-    return api.post('/hotels', data);
-  },
-
-  async update(id, data) {
-    return api.put(`/hotels/${id}`, data);
-  },
-
-  async delete(id) {
-    return api.delete(`/hotels/${id}`);
-  },
+const hotelService = {
+  getAll: (params = {}) => api.get('/hotels', { params }),
+  getById: (id) => api.get(`/hotels/${id}`),
+  getByDestination: (destination) => api.get(`/hotels/destination/${destination}`),
+  create: (data) => api.post('/hotels', data),
+  update: (id, data) => api.put(`/hotels/${id}`, data),
+  delete: (id) => api.delete(`/hotels/${id}`),
 };
 
 export default hotelService;

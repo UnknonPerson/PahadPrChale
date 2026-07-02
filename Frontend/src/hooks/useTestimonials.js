@@ -1,49 +1,29 @@
 import { useState, useEffect, useCallback } from 'react';
 import testimonialService from '../services/testimonialService';
 
-export function useTestimonials() {
+export function useTestimonials(onlyFeatured = false) {
   const [testimonials, setTestimonials] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [loading, setLoading]           = useState(true);
+  const [error, setError]               = useState(null);
 
   const fetchTestimonials = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await testimonialService.getAll();
-      const data = response.data || response;
-      setTestimonials(Array.isArray(data) ? data : []);
+      const res = onlyFeatured
+        ? await testimonialService.getFeatured()
+        : await testimonialService.getAll({ status: 'approved', limit: 20 });
+      const items = res?.data?.testimonials ?? res?.testimonials ?? res?.data ?? [];
+      setTestimonials(Array.isArray(items) ? items : []);
     } catch (err) {
-      console.error('Failed to fetch testimonials:', err);
-      setError(err.message || 'Failed to load testimonials');
+      setError(err?.response?.data?.message || 'Failed to load testimonials');
       setTestimonials([]);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [onlyFeatured]);
 
-  useEffect(() => {
-    fetchTestimonials();
-  }, [fetchTestimonials]);
+  useEffect(() => { fetchTestimonials(); }, [fetchTestimonials]);
 
   return { testimonials, loading, error, refetch: fetchTestimonials };
-}
-
-export function useTestimonialActions() {
-  const create = async (data) => {
-    const response = await testimonialService.create(data);
-    return response.data || response;
-  };
-
-  const update = async (id, data) => {
-    const response = await testimonialService.update(id, data);
-    return response.data || response;
-  };
-
-  const remove = async (id) => {
-    const response = await testimonialService.delete(id);
-    return response.data || response;
-  };
-
-  return { create, update, remove };
 }

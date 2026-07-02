@@ -1,64 +1,45 @@
 import api from './api';
 
+// All methods return the raw API payload: { success, message, data, ... }
+// The axios interceptor already strips the axios wrapper.
+
 const authService = {
-  async register(name, email, password, phone) {
-    const res = await api.post('/auth/register', { name, email, password, phone });
-    return res.data || res;
-  },
+  register: (name, email, phone, password) =>
+    api.post('/auth/register', { name, email, phone, password }),
 
-  async login(email, password) {
-    const res = await api.post('/auth/login', { email, password });
-    return res.data || res;
-  },
+  login: (email, password) =>
+    api.post('/auth/login', { email, password }),
 
-  async logout() {
-    const res = await api.post('/auth/logout');
-    return res.data || res;
-  },
+  logout: () =>
+    api.post('/auth/logout'),
 
-  async getCurrentUser() {
-    const res = await api.get('/auth/me');
-    return res.data || res;
-  },
+  getCurrentUser: () =>
+    api.get('/auth/me'),
 
-  // Accepts FormData for image upload or plain object
-  async updateProfile(data) {
+  updateProfile: (data) => {
     const isFormData = data instanceof FormData;
-    const res = await api.put('/auth/update-profile', data, {
+    return api.put('/auth/update-profile', data, {
       headers: isFormData ? { 'Content-Type': 'multipart/form-data' } : {},
     });
-    return res.data || res;
   },
 
-  async changePassword(currentPassword, newPassword) {
-    const res = await api.put('/auth/change-password', { currentPassword, newPassword });
-    return res.data || res;
-  },
+  changePassword: (currentPassword, newPassword) =>
+    api.put('/auth/change-password', { currentPassword, newPassword }),
 
-  async deleteAccount(password) {
-    const res = await api.delete('/auth/delete-account', { data: { password } });
-    return res.data || res;
-  },
+  deleteAccount: (password) =>
+    api.delete('/auth/delete-account', { data: { password } }),
 
-  async verifyEmail(token) {
-    const res = await api.get(`/auth/verify-email/${token}`);
-    return res.data || res;
-  },
+  verifyEmail: (token) =>
+    api.get(`/auth/verify-email/${token}`),
 
-  async resendVerification(email) {
-    const res = await api.post('/auth/resend-verification', { email });
-    return res.data || res;
-  },
+  resendVerification: (email) =>
+    api.post('/auth/resend-verification', { email }),
 
-  async forgotPassword(email) {
-    const res = await api.post('/auth/forgot-password', { email });
-    return res.data || res;
-  },
+  forgotPassword: (email) =>
+    api.post('/auth/forgot-password', { email }),
 
-  async resetPassword(token, password) {
-    const res = await api.put(`/auth/reset-password/${token}`, { password });
-    return res.data || res;
-  },
+  resetPassword: (token, password) =>
+    api.put(`/auth/reset-password/${token}`, { password }),
 };
 
 export default authService;

@@ -1,91 +1,73 @@
 import { useState, useEffect, useCallback } from 'react';
 import hotelService from '../services/hotelService';
 
-// Normalize hotel data: supports both old string-array and new {url,publicId} images
-function normalizeHotel(hotel) {
-  if (!hotel) return hotel;
-  const images = (hotel.images || []).map((img) =>
-    typeof img === 'string' ? img : img?.url || ''
-  ).filter(Boolean);
-  return {
-    ...hotel,
-    image: images[0] || hotel.image || '',
-    gallery: images.slice(1),
-    images, // raw normalized string array for convenience
-  };
+function normalizeImages(images = []) {
+  return images.map((img) => (typeof img === 'string' ? img : img?.url || '')).filter(Boolean);
 }
 
-export function useHotels(filters = {}) {
-  const [hotels, setHotels] = useState([]);
+function normalizeHotel(h) {
+  if (!h) return h;
+  const imgs = normalizeImages(h.images);
+  return { ...h, image: imgs[0] || '', gallery: imgs.slice(1), images: imgs };
+}
+
+export function useHotels(initialFilters = {}) {
+  const [hotels, setHotels]   = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError]     = useState(null);
 
-  const filtersKey = JSON.stringify(filters);
+  const filtersKey = JSON.stringify(initialFilters);
 
-  const fetchHotels = useCallback(async () => {
+  const fetchHotels = useCallback(async (filters = initialFilters) => {
     try {
       setLoading(true);
       setError(null);
-      const response = await hotelService.getAll(filters);
-      const data = response.data || response;
-      const raw = Array.isArray(data) ? data : (data?.hotels || []);
+      const res = await hotelService.getAll(filters);
+      const raw = res?.data ?? (Array.isArray(res) ? res : []);
       setHotels(raw.map(normalizeHotel));
     } catch (err) {
-      console.error('Failed to fetch hotels:', err);
-      setError(err.message || 'Failed to load hotels');
+      setError(err?.response?.data?.message || 'Failed to load hotels');
       setHotels([]);
     } finally {
       setLoading(false);
     }
-  }, [filtersKey]);
+  }, [filtersKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => {
-    fetchHotels();
-  }, [fetchHotels]);
+  useEffect(() => { fetchHotels(); }, [fetchHotels]);
 
   return { hotels, loading, error, refetch: fetchHotels };
 }
 
 export function useHotel(id) {
-  const [hotel, setHotel] = useState(null);
+  const [hotel, setHotel]     = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError]     = useState(null);
 
   useEffect(() => {
-    async function fetchHotel() {
-      if (!id) { setLoading(false); return; }
+    if (!id) { setLoading(false); return; }
+    let cancelled = false;
+    (async () => {
       try {
         setLoading(true);
-        setError(null);
-        const response = await hotelService.getById(id);
-        const raw = response.data?.hotel || response.hotel || response.data || response;
-        setHotel(normalizeHotel(raw));
+        const res = await hotelService.getById(id);
+        const raw = res?.data?.hotel ?? res?.hotel ?? res?.data ?? null;
+        if (!cancelled) setHotel(normalizeHotel(raw));
       } catch (err) {
-        console.error('Failed to fetch hotel:', err);
-        setError(err.message || 'Failed to load hotel');
-        setHotel(null);
+        if (!cancelled) setError(err?.response?.data?.message || 'Hotel not found');
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
-    }
-    fetchHotel();
+    })();
+    return () => { cancelled = true; };
   }, [id]);
 
   return { hotel, loading, error };
 }
 
 export function useHotelActions() {
-  const create = async (data) => {
-    const response = await hotelService.create(data);
-    return response.data || response;
+  return {
+    create: (data) => hotelService.create(data),
+    update: (id, data) => hotelService.update(id, data),
+    remove: (id) => hotelService.delete(id),
   };
-  const update = async (id, data) => {
-    const response = await hotelService.update(id, data);
-    return response.data || response;
-  };
-  const remove = async (id) => {
-    const response = await hotelService.delete(id);
-    return response.data || response;
-  };
-  return { create, update, remove };
 }

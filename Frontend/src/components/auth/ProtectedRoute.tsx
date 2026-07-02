@@ -1,5 +1,5 @@
-import { ReactNode, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { ReactNode } from 'react';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { PageLoader } from '../ui/LoadingSpinner';
 
@@ -10,21 +10,20 @@ interface ProtectedRouteProps {
 
 export default function ProtectedRoute({ children, adminOnly = false }: ProtectedRouteProps) {
   const { isAuthenticated, isAdmin, loading } = useAuth();
-  const navigate = useNavigate();
   const location = useLocation();
 
-  useEffect(() => {
-    if (loading) return;
-    if (!isAuthenticated) {
-      navigate('/login', { state: { from: location }, replace: true });
-    } else if (adminOnly && !isAdmin) {
-      navigate('/', { replace: true });
-    }
-  }, [loading, isAuthenticated, isAdmin, adminOnly, navigate, location]);
-
+  // Never render or redirect until auth check is complete
   if (loading) return <PageLoader />;
-  if (!isAuthenticated) return null;
-  if (adminOnly && !isAdmin) return null;
+
+  // Not logged in → redirect to login, preserve intended destination
+  if (!isAuthenticated) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  // Logged in but not admin → redirect home
+  if (adminOnly && !isAdmin) {
+    return <Navigate to="/" replace />;
+  }
 
   return <>{children}</>;
 }
