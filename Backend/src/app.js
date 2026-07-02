@@ -23,6 +23,7 @@ import reviewRoutes from './routes/reviewRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 
 const app = express();
+app.set('trust proxy', 1);
 
 // ─── Security ─────────────────────────────────────────────────────────────────
 
@@ -101,6 +102,13 @@ app.get('/api/health', (_, res) =>
     environment: process.env.NODE_ENV || 'development',
   })
 );
+
+app.get("/", (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: "PahadPrChale Backend API is running 🚀"
+  });
+});
 
 // ─── Error handling ───────────────────────────────────────────────────────────
 
