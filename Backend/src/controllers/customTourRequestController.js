@@ -143,6 +143,18 @@ export const cancelRequest = asyncHandler(async (req, res) => {
   sendSuccess(res, { request }, 'Tour request cancelled successfully');
 });
 
+export const deleteRequest = asyncHandler(async (req, res) => {
+  const request = await CustomTourRequest.findById(req.params.id);
+
+  if (!request) {
+    return sendError(res, 'Tour request not found', 404);
+  }
+
+  await request.deleteOne();
+
+  sendSuccess(res, null, 'Tour request deleted successfully');
+});
+
 export const getStats = asyncHandler(async (req, res) => {
   const [total, pending, underReview, approved, rejected, completed] = await Promise.all([
     CustomTourRequest.countDocuments(),

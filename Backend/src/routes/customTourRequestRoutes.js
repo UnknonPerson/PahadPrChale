@@ -4,10 +4,10 @@ import {
   getMyRequests,
   getRequest,
   getAllRequests,
-  updateStatus,
+  updateRequestStatus,
   cancelRequest,
-  deleteRequest,
   getStats,
+  deleteRequest,
 } from '../controllers/customTourRequestController.js';
 import { protect } from '../middleware/auth.js';
 import { adminOnly } from '../middleware/admin.js';
@@ -25,7 +25,7 @@ router.put('/:id/cancel', cancelRequest);
 // Admin routes
 router.get('/stats', adminOnly, getStats);
 router.get('/', adminOnly, getAllRequests);
-router.put('/:id/status', adminOnly, updateStatus);
+router.put('/:id/status', adminOnly, updateRequestStatus);
 router.delete('/:id', adminOnly, deleteRequest);
 
 // Shared routes (ownership checked in controller)
