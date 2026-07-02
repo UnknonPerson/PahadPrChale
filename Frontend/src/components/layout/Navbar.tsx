@@ -17,6 +17,7 @@ import {
   Bus,
   Building2,
   Compass,
+  Route,
 } from 'lucide-react';
 import ThemeToggle from '../ui/ThemeToggle';
 import { useAuth } from '../../context/AuthContext';
@@ -27,6 +28,7 @@ const navLinks = [
   { name: 'Packages', path: '/packages', icon: Compass },
   { name: 'Hotels', path: '/hotels', icon: Building2 },
   { name: 'Vehicles', path: '/vehicles', icon: Bus },
+  { name: 'Custom Tour', path: '/custom-tour-request', icon: Route },
   { name: 'About', path: '/about' },
   { name: 'Contact', path: '/contact' },
 ];

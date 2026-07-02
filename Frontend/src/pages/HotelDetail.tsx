@@ -1,11 +1,12 @@
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, MapPin, Star, Wifi, Car, Coffee, Dumbbell, Save as Waves, Heart, Share2, Phone, Mail } from 'lucide-react';
+import { ArrowLeft, MapPin, Star, Wifi, Car, Coffee, Dumbbell, Save as Waves, Heart, Share2, Phone, Mail, LogIn } from 'lucide-react';
 import { useState } from 'react';
 import { useWishlist } from '../context/WishlistContext';
 import { useToast } from '../context/ToastContext';
 import { useHotel } from '../hooks/useHotels';
 import { PageLoader } from '../components/ui/LoadingSpinner';
+import { useAuth } from '../context/AuthContext';
 
 const amenityIcons: Record<string, React.ElementType> = {
   'Free WiFi': Wifi,
@@ -21,7 +22,17 @@ export default function HotelDetail() {
   const { hotel, loading, error } = useHotel(id);
   const { addItem, removeItem, isInWishlist } = useWishlist();
   const { success } = useToast();
+  const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
   const [selectedImage, setSelectedImage] = useState(0);
+
+  const handleBookNow = () => {
+    if (!isAuthenticated) {
+      navigate('/login', { state: { from: { pathname: '/booking' } } });
+    } else {
+      navigate('/booking');
+    }
+  };
 
   if (loading) {
     return <PageLoader />;
@@ -233,9 +244,9 @@ export default function HotelDetail() {
                   </div>
                 </div>
 
-                <Link to="/booking">
-                  <button className="btn-primary w-full mb-3">Book Now</button>
-                </Link>
+                <button className="btn-primary w-full mb-3" onClick={handleBookNow}>
+                  {isAuthenticated ? 'Book Now' : <span className="flex items-center justify-center gap-2"><LogIn className="w-4 h-4" />Login to Book</span>}
+                </button>
                 <button className="btn-outline w-full flex items-center justify-center gap-2">
                   <Phone className="w-4 h-4" />
                   Contact Hotel

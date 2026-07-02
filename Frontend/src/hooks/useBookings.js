@@ -63,6 +63,11 @@ export function useBookingActions() {
     return response.data || response;
   };
 
+  const updateStatus = async (id, status) => {
+    const response = await bookingService.updateStatus(id, status);
+    return response.data || response;
+  };
+
   const cancel = async (id) => {
     const response = await bookingService.cancel(id);
     return response.data || response;
@@ -73,5 +78,5 @@ export function useBookingActions() {
     return response.data || response;
   };
 
-  return { create, cancel, remove };
+  return { create, updateStatus, cancel, remove };
 }

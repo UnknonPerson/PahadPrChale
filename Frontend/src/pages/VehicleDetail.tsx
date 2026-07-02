@@ -1,12 +1,23 @@
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Users, Fuel, Settings, Shield, MapPin, Star, Phone, Mail, Check } from 'lucide-react';
+import { ArrowLeft, Users, Fuel, Settings, Shield, MapPin, Star, Phone, Mail, Check, LogIn } from 'lucide-react';
 import { useVehicle } from '../hooks/useVehicles';
 import { PageLoader } from '../components/ui/LoadingSpinner';
+import { useAuth } from '../context/AuthContext';
 
 export default function VehicleDetail() {
   const { id } = useParams<{ id: string }>();
   const { vehicle, loading, error } = useVehicle(id);
+  const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+
+  const handleBookNow = () => {
+    if (!isAuthenticated) {
+      navigate('/login', { state: { from: { pathname: `/booking?type=vehicle&id=${vehicle?.id || vehicle?._id}` } } });
+    } else {
+      navigate(`/booking?type=vehicle&id=${vehicle?.id || vehicle?._id}`);
+    }
+  };
 
   // Helper functions for data mapping
   const getVehicleImage = () => vehicle?.image || vehicle?.images?.[0] || 'https://images.pexels.com/photos/1209398/pexels-photo-1209398.jpeg?auto=compress&cs=tinysrgb&w=800';
@@ -221,9 +232,9 @@ export default function VehicleDetail() {
                   </div>
                 </div>
 
-                <Link to={`/booking?type=vehicle&id=${vehicle.id || vehicle._id}`}>
-                  <button className="btn-primary w-full mb-3">Book Now</button>
-                </Link>
+                <button className="btn-primary w-full mb-3" onClick={handleBookNow}>
+                  {isAuthenticated ? 'Book Now' : <span className="flex items-center justify-center gap-2"><LogIn className="w-4 h-4" />Login to Book</span>}
+                </button>
                 <button className="btn-outline w-full flex items-center justify-center gap-2">
                   <Phone className="w-4 h-4" />
                   Request Callback

@@ -21,6 +21,10 @@ export const bookingService = {
     return api.put(`/bookings/${id}`, data);
   },
 
+  async updateStatus(id, status) {
+    return api.put(`/bookings/${id}/status`, { status });
+  },
+
   async cancel(id) {
     return api.put(`/bookings/${id}/cancel`);
   },

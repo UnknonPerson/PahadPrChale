@@ -11,11 +11,17 @@ interface User {
   avatar?: string;
 }
 
+interface LoginResult {
+  success: boolean;
+  message?: string;
+  user?: User;
+}
+
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isAdmin: boolean;
-  login: (email: string, password: string) => Promise<{ success: boolean; message?: string }>;
+  login: (email: string, password: string) => Promise<LoginResult>;
   register: (name: string, email: string, phone: string, password: string) => Promise<{ success: boolean; message?: string }>;
   logout: () => Promise<void>;
   updateProfile: (data: Partial<User>) => Promise<{ success: boolean; message?: string }>;
@@ -28,16 +34,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  console.log("AUTH USER:", user);
-  console.log("IS ADMIN:", user?.role);
-
   const checkAuth = useCallback(async () => {
     try {
       const response = await authService.getCurrentUser();
-      const userData = response.data.user || response;
+      const userData = response.data?.user || response.data || response;
       setUser(userData);
-    } catch (error) {
-      console.error('Auth check failed:', error);
+    } catch {
       setUser(null);
     } finally {
       setLoading(false);
@@ -48,19 +50,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     checkAuth();
   }, [checkAuth]);
 
-  const login = async (email: string, password: string): Promise<{ success: boolean; message?: string }> => {
+  const login = async (email: string, password: string): Promise<LoginResult> => {
     setLoading(true);
     try {
       const response = await authService.login(email, password);
-      const userData = response.data.user || response.user || response;
+      const userData = response.data?.user || response.user || response;
       setUser(userData);
-
-      
-      console.log("LOGIN RESPONSE:", response);
-      console.log("USER DATA:", userData);
-
-      return { success: true,
-        message: 'Login successful' };
+      return { success: true, user: userData };
     } catch (error: any) {
       const message = error.response?.data?.message || error.message || 'Login failed';
       return { success: false, message };
@@ -73,7 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     try {
       const response = await authService.register(name, email, password, phone);
-      const userData = response.data.user || response.user || response;
+      const userData = response.data?.user || response.user || response;
       setUser(userData);
       return { success: true, message: 'Registration successful' };
     } catch (error: any) {
@@ -87,8 +83,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = async () => {
     try {
       await authService.logout();
-    } catch (error) {
-      console.error('Logout error:', error);
+    } catch {
+      // ignore
     } finally {
       setUser(null);
     }
@@ -97,7 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const updateProfile = async (data: Partial<User>): Promise<{ success: boolean; message?: string }> => {
     try {
       const response = await authService.updateProfile(data);
-      const userData = response.data.user || response;
+      const userData = response.data?.user || response;
       setUser(userData);
       return { success: true, message: 'Profile updated successfully' };
     } catch (error: any) {

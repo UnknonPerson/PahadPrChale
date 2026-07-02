@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Mail, Clock, CircleCheck as CheckCircle, Send, MessageSquare } from 'lucide-react';
+import { Mail, Clock, CircleCheck as CheckCircle, Send, MessageSquare, RefreshCw } from 'lucide-react';
 import { useMyMessages, useMessageActions } from '../hooks/useMessages';
 import { PageLoader } from '../components/ui/LoadingSpinner';
+import { useAuth } from '../context/AuthContext';
 
 export default function MyMessages() {
   const { messages, loading, error, refetch } = useMyMessages();
@@ -13,22 +14,26 @@ export default function MyMessages() {
   const [newMessage, setNewMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { create } = useMessageActions();
+  const { isAuthenticated } = useAuth();
+
+  // Auto-select first unread when messages load
+  useEffect(() => {
+    if (!selectedMessage && messages.length > 0) {
+      setSelectedMessage(messages[0]);
+    }
+  }, [messages]);
 
   const handleSendMessage = async () => {
     if (!newSubject.trim() || !newMessage.trim()) return;
-
     try {
       setIsSubmitting(true);
-      await create({
-        subject: newSubject,
-        message: newMessage,
-      });
+      await create({ subject: newSubject, message: newMessage });
       await refetch();
       setShowNewMessage(false);
       setNewSubject('');
       setNewMessage('');
-    } catch (err) {
-      console.error('Failed to send message:', err);
+    } catch {
+      // ignore
     } finally {
       setIsSubmitting(false);
     }
@@ -36,48 +41,53 @@ export default function MyMessages() {
 
   const formatDate = (date: string) => {
     return new Date(date).toLocaleDateString('en-IN', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
+      day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
     });
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'unread':
-        return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400';
-      case 'read':
-        return 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300';
-      case 'replied':
-        return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
-      default:
-        return 'bg-gray-100 text-gray-700';
+      case 'unread': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400';
+      case 'read': return 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300';
+      case 'replied': return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
+      default: return 'bg-gray-100 text-gray-700';
     }
   };
 
   if (loading) return <PageLoader />;
+
+  const unreadCount = messages.filter((m: any) => m.status === 'unread').length;
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-2xl font-display font-bold text-gray-900 dark:text-white">
-              My Messages
-            </h1>
+            <h1 className="text-2xl font-display font-bold text-gray-900 dark:text-white">My Messages</h1>
             <p className="text-gray-500 dark:text-gray-400 mt-1">
-              View your conversations with our support team
+              {unreadCount > 0 && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-sm font-medium mr-2">
+                  {unreadCount} unread
+                </span>
+              )}
+              Conversations with support
             </p>
           </div>
-          <button
-            onClick={() => setShowNewMessage(!showNewMessage)}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary-500 text-white hover:bg-primary-600 transition-colors"
-          >
-            <Send className="w-4 h-4" />
-            New Message
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => refetch()}
+              className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 text-sm"
+            >
+              <RefreshCw className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setShowNewMessage(!showNewMessage)}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary-500 text-white hover:bg-primary-600 transition-colors"
+            >
+              <Send className="w-4 h-4" />
+              New Message
+            </button>
+          </div>
         </div>
 
         {error && (
@@ -91,16 +101,12 @@ export default function MyMessages() {
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 mb-6"
+            className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 mb-6 border border-gray-200 dark:border-gray-700"
           >
-            <h3 className="font-semibold text-gray-900 dark:text-white mb-4">
-              Send a New Message
-            </h3>
+            <h3 className="font-semibold text-gray-900 dark:text-white mb-4">Send a Message to Support</h3>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Subject
-                </label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Subject *</label>
                 <input
                   type="text"
                   value={newSubject}
@@ -110,9 +116,7 @@ export default function MyMessages() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Message
-                </label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Message *</label>
                 <textarea
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
@@ -122,11 +126,7 @@ export default function MyMessages() {
               </div>
               <div className="flex justify-end gap-3">
                 <button
-                  onClick={() => {
-                    setShowNewMessage(false);
-                    setNewSubject('');
-                    setNewMessage('');
-                  }}
+                  onClick={() => { setShowNewMessage(false); setNewSubject(''); setNewMessage(''); }}
                   className="px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
                 >
                   Cancel
@@ -142,10 +142,7 @@ export default function MyMessages() {
                       Sending...
                     </span>
                   ) : (
-                    <>
-                      <Send className="w-4 h-4" />
-                      Send
-                    </>
+                    <><Send className="w-4 h-4" />Send</>
                   )}
                 </button>
               </div>
@@ -155,7 +152,7 @@ export default function MyMessages() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Message List */}
-          <div className="lg:col-span-1 bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden">
+          <div className="lg:col-span-1 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
             <div className="p-4 border-b border-gray-200 dark:border-gray-700">
               <h3 className="font-medium text-gray-900 dark:text-white">
                 Conversations ({messages.length})
@@ -166,7 +163,7 @@ export default function MyMessages() {
                 <div className="p-8 text-center">
                   <MessageSquare className="w-12 h-12 mx-auto mb-3 text-gray-300 dark:text-gray-600" />
                   <p className="text-gray-500 dark:text-gray-400">No messages yet</p>
-                  <p className="text-sm text-gray-400 mt-1">Start a conversation with our support team</p>
+                  <p className="text-sm text-gray-400 mt-1">Send a message to get help</p>
                 </div>
               ) : (
                 messages.map((message: any) => (
@@ -178,11 +175,12 @@ export default function MyMessages() {
                     }`}
                   >
                     <div className="flex items-center gap-2 mb-1">
-                      <p className="font-medium text-gray-900 dark:text-white truncate">
-                        {message.subject}
-                      </p>
+                      <p className="font-medium text-gray-900 dark:text-white truncate flex-1">{message.subject}</p>
                       {message.status === 'unread' && (
                         <span className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0" />
+                      )}
+                      {message.status === 'replied' && (
+                        <span className="w-2 h-2 rounded-full bg-green-500 flex-shrink-0" />
                       )}
                     </div>
                     <p className="text-sm text-gray-500 truncate">{message.message?.substring(0, 50)}...</p>
@@ -197,18 +195,16 @@ export default function MyMessages() {
           </div>
 
           {/* Message Detail */}
-          <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
+          <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
             {selectedMessage ? (
               <div>
-                <div className="flex items-center gap-2 mb-4">
+                <div className="flex items-center gap-3 mb-4">
                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(selectedMessage.status)}`}>
                     {selectedMessage.status.charAt(0).toUpperCase() + selectedMessage.status.slice(1)}
                   </span>
                 </div>
 
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-                  {selectedMessage.subject}
-                </h2>
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">{selectedMessage.subject}</h2>
 
                 <div className="flex items-center gap-4 text-sm text-gray-500 mb-6">
                   <div className="flex items-center gap-1">
@@ -218,25 +214,27 @@ export default function MyMessages() {
                 </div>
 
                 <div className="p-4 bg-gray-50 dark:bg-gray-900 rounded-xl mb-6">
-                  <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
-                    {selectedMessage.message}
-                  </p>
+                  <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{selectedMessage.message}</p>
                 </div>
 
-                {selectedMessage.reply && (
+                {selectedMessage.reply ? (
                   <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-200 dark:border-green-800">
                     <div className="flex items-center gap-2 mb-2 text-green-700 dark:text-green-400 font-medium">
                       <CheckCircle className="w-4 h-4" />
-                      Support Reply
+                      Reply from Support Team
                     </div>
-                    <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
-                      {selectedMessage.reply}
-                    </p>
+                    <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{selectedMessage.reply}</p>
                     {selectedMessage.repliedAt && (
                       <p className="text-xs text-gray-500 mt-2">
                         Replied on {formatDate(selectedMessage.repliedAt)}
                       </p>
                     )}
+                  </div>
+                ) : (
+                  <div className="p-4 bg-yellow-50 dark:bg-yellow-900/10 rounded-xl border border-yellow-200 dark:border-yellow-800">
+                    <p className="text-yellow-700 dark:text-yellow-400 text-sm">
+                      Our support team will reply to this message within 24 hours.
+                    </p>
                   </div>
                 )}
               </div>

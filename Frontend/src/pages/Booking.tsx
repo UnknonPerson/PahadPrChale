@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { useSearchParams, Link, useNavigate } from 'react-router-dom';
+import { useSearchParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Calendar, Users, MapPin, Phone, Mail, CircleCheck as CheckCircle, User, ArrowLeft, Car, Package, Loader } from 'lucide-react';
+import { Calendar, Users, MapPin, Phone, Mail, CircleCheck as CheckCircle, User, ArrowLeft, Car, Package, Loader, LogIn } from 'lucide-react';
 import Button from '../components/ui/Button';
 import { usePackages } from '../hooks/usePackages';
 import { useVehicles } from '../hooks/useVehicles';
@@ -13,10 +13,21 @@ type BookingType = 'package' | 'vehicle';
 export default function Booking() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const location = useLocation();
+  const { user, isAuthenticated } = useAuth();
 
   const bookingType = (searchParams.get('type') as BookingType) || 'package';
   const itemId = searchParams.get('id');
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!isAuthenticated) {
+      navigate('/login', {
+        state: { from: { pathname: location.pathname + location.search } },
+        replace: true,
+      });
+    }
+  }, [isAuthenticated, navigate, location]);
 
   const { packages } = usePackages();
   const { vehicles } = useVehicles();

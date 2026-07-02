@@ -9,11 +9,10 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const { login, isAdmin } = useAuth();
+  const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -30,19 +29,15 @@ export default function Login() {
       return;
     }
 
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters');
-      setIsLoading(false);
-      return;
-    }
-
     const result = await login(email, password);
 
     if (result.success) {
-      if (isAdmin) {
-        navigate('/admin');
+      const role = (result as any).user?.role;
+      if (role === 'admin') {
+        navigate('/admin', { replace: true });
       } else {
-        navigate(from, { replace: true });
+        const dest = from && from !== '/login' && from !== '/register' ? from : '/';
+        navigate(dest, { replace: true });
       }
     } else {
       setError(result.message || 'Invalid email or password');
@@ -54,11 +49,7 @@ export default function Login() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 px-4 py-12">
       <div className="w-full max-w-md">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-        >
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
           <div className="text-center mb-8">
             <Link to="/" className="inline-flex items-center gap-2 mb-6">
               <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary-500 to-secondary-500 flex items-center justify-center">
@@ -68,15 +59,16 @@ export default function Login() {
                 PahadPer<span className="text-primary-500">Chale</span>
               </span>
             </Link>
-            <h1 className="text-3xl font-display font-bold text-gray-900 dark:text-white mb-2">
-              Welcome Back
-            </h1>
-            <p className="text-gray-600 dark:text-gray-400">
-              Sign in to continue your journey
-            </p>
+            <h1 className="text-3xl font-display font-bold text-gray-900 dark:text-white mb-2">Welcome Back</h1>
+            <p className="text-gray-600 dark:text-gray-400">Sign in to continue your journey</p>
+            {from && from !== '/' && from !== '/login' && (
+              <p className="mt-2 text-sm text-primary-500 bg-primary-50 dark:bg-primary-900/20 px-3 py-1 rounded-lg">
+                Login required to continue
+              </p>
+            )}
           </div>
 
-          <div className="glass-card p-8">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm p-8">
             <form onSubmit={handleSubmit} className="space-y-6">
               {error && (
                 <motion.div
@@ -89,26 +81,15 @@ export default function Login() {
               )}
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Email Address
-                </label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Email Address</label>
                 <div className="relative">
                   <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="input-field pl-12"
-                    placeholder="your@email.com"
-                    required
-                  />
+                  <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="input-field pl-12" placeholder="your@email.com" required />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Password
-                </label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Password</label>
                 <div className="relative">
                   <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                   <input
@@ -119,37 +100,17 @@ export default function Login() {
                     placeholder="Enter your password"
                     required
                   />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                  >
+                  <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
                     {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                   </button>
                 </div>
               </div>
 
-              <div className="flex items-center justify-between">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={rememberMe}
-                    onChange={(e) => setRememberMe(e.target.checked)}
-                    className="w-4 h-4 rounded border-gray-300 text-primary-500 focus:ring-primary-500"
-                  />
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Remember me</span>
-                </label>
-                <Link to="/forgot-password" className="text-sm text-primary-500 hover:text-primary-600">
-                  Forgot Password?
-                </Link>
+              <div className="flex items-center justify-end">
+                <Link to="/forgot-password" className="text-sm text-primary-500 hover:text-primary-600">Forgot Password?</Link>
               </div>
 
-              <Button
-                type="submit"
-                variant="primary"
-                className="w-full"
-                disabled={isLoading}
-              >
+              <Button type="submit" variant="primary" className="w-full" disabled={isLoading}>
                 {isLoading ? (
                   <span className="flex items-center gap-2">
                     <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
@@ -159,32 +120,16 @@ export default function Login() {
                     Signing in...
                   </span>
                 ) : (
-                  <span className="flex items-center gap-2">
-                    Sign In
-                    <ArrowRight className="w-5 h-5" />
-                  </span>
+                  <span className="flex items-center gap-2">Sign In<ArrowRight className="w-5 h-5" /></span>
                 )}
               </Button>
             </form>
 
-            <div className="mt-6">
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-gray-200 dark:border-gray-700"></div>
-                </div>
-                <div className="relative flex justify-center text-sm">
-                  <span className="px-4 bg-white dark:bg-gray-800 text-gray-500">Or</span>
-                </div>
-              </div>
-
-              <div className="mt-6 text-center">
-                <p className="text-gray-600 dark:text-gray-400">
-                  Don't have an account?{' '}
-                  <Link to="/register" className="text-primary-500 hover:text-primary-600 font-semibold">
-                    Create Account
-                  </Link>
-                </p>
-              </div>
+            <div className="mt-6 text-center">
+              <p className="text-gray-600 dark:text-gray-400">
+                Don't have an account?{' '}
+                <Link to="/register" className="text-primary-500 hover:text-primary-600 font-semibold">Create Account</Link>
+              </p>
             </div>
           </div>
         </motion.div>
