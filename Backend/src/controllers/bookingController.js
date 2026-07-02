@@ -3,14 +3,11 @@ import Package from '../models/Package.js';
 import Vehicle from '../models/Vehicle.js';
 import Activity from '../models/Activity.js';
 import Notification from '../models/Notification.js';
+import User from '../models/User.js';
 import asyncHandler from '../middleware/asyncHandler.js';
 import { sendSuccess, sendError, sendPaginated } from '../utils/response.js';
+import emailService from '../utils/emailService.js';
 
-/**
- * @desc    Create a new booking
- * @route   POST /api/bookings
- * @access  Public (or Private based on requirements)
- */
 export const createBooking = asyncHandler(async (req, res) => {
   const {
     type = 'package',
@@ -34,28 +31,18 @@ export const createBooking = asyncHandler(async (req, res) => {
   let calculatedTotal = totalAmount;
 
   if (type === 'package' || packageId) {
-    // Get package details
     const pkg = await Package.findById(packageId);
-    if (!pkg) {
-      return sendError(res, 'Package not found', 404);
-    }
+    if (!pkg) return sendError(res, 'Package not found', 404);
     packageName = pkg.name;
     destination = pkg.destination;
     calculatedTotal = totalAmount || pkg.price * travelers;
   } else if (type === 'vehicle' || vehicleId) {
-    // Get vehicle details
     const vehicle = await Vehicle.findById(vehicleId);
-    if (!vehicle) {
-      return sendError(res, 'Vehicle not found', 404);
-    }
+    if (!vehicle) return sendError(res, 'Vehicle not found', 404);
     vehicleName = vehicle.vehicleName || vehicle.name || 'Vehicle';
     destination = vehicle.destination || '';
-
-    // Calculate days between pickup and return
     if (travelDate && returnDate) {
-      const start = new Date(travelDate);
-      const end = new Date(returnDate);
-      const days = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) || 1;
+      const days = Math.max(1, Math.ceil((new Date(returnDate) - new Date(travelDate)) / 86400000));
       calculatedTotal = totalAmount || vehicle.pricePerDay * days;
     } else {
       calculatedTotal = totalAmount || vehicle.pricePerDay;
@@ -82,226 +69,180 @@ export const createBooking = asyncHandler(async (req, res) => {
     specialRequests: specialRequests || '',
   });
 
-  // Create activity
+  // Send booking confirmation email (non-blocking)
+  if (customerEmail) {
+    emailService.sendBookingConfirmation(customerEmail, booking);
+  }
+
   await Activity.create({
     user: req.user?._id || null,
     type: 'booking_created',
-    description: `New ${type} booking: ${packageName || vehicleName} for ${travelers} ${type === 'vehicle' ? 'passenger(s)' : 'traveler(s)'}`,
+    description: `New ${type} booking: ${packageName || vehicleName} for ${travelers} traveler(s)`,
     relatedId: booking._id,
     relatedModel: 'Booking',
-    metadata: {
-      type,
-      name: packageName || vehicleName,
-      travelers,
-      totalAmount: calculatedTotal
-    },
-  });
-
-  // Notify admin users (would need admin notification logic)
-  // For now just create the booking
+    metadata: { type, name: packageName || vehicleName, travelers, totalAmount: calculatedTotal },
+  }).catch(() => {});
 
   sendSuccess(res, { booking }, 'Booking created successfully', 201);
 });
 
-/**
- * @desc    Get all bookings (Admin)
- * @route   GET /api/bookings
- * @access  Private (Admin only)
- */
 export const getAllBookings = asyncHandler(async (req, res) => {
-  const {
-    page = 1,
-    limit = 10,
-    status,
-    search,
-    sort = '-createdAt',
-  } = req.query;
-
+  const { page = 1, limit = 20, status, search, type, sort = '-createdAt' } = req.query;
   const query = {};
-
-  if (status) {
-    query.status = status;
-  }
-
+  if (status) query.status = status;
+  if (type) query.type = type;
   if (search) {
     query.$or = [
-      { customerName: { $regex: search, $options: 'i' } },
-      { customerEmail: { $regex: search, $options: 'i' } },
-      { packageName: { $regex: search, $options: 'i' } },
+      { customerName: new RegExp(search, 'i') },
+      { customerEmail: new RegExp(search, 'i') },
+      { packageName: new RegExp(search, 'i') },
+      { vehicleName: new RegExp(search, 'i') },
+      { bookingId: new RegExp(search, 'i') },
     ];
   }
 
   const skip = (parseInt(page) - 1) * parseInt(limit);
-
-  const bookings = await Booking.find(query)
-    .sort(sort)
-    .skip(skip)
-    .limit(parseInt(limit));
-
-  const total = await Booking.countDocuments(query);
+  const [bookings, total] = await Promise.all([
+    Booking.find(query).sort(sort).skip(skip).limit(parseInt(limit)),
+    Booking.countDocuments(query),
+  ]);
 
   sendPaginated(res, bookings, total, page, limit, 'Bookings fetched successfully');
 });
 
-/**
- * @desc    Get single booking
- * @route   GET /api/bookings/:id
- * @access  Private
- */
-export const getBooking = asyncHandler(async (req, res) => {
-  const booking = await Booking.findById(req.params.id).populate(
-    'package',
-    'name image duration category'
-  );
+export const getMyBookings = asyncHandler(async (req, res) => {
+  const bookings = await Booking.find({ user: req.user.id })
+    .sort('-createdAt')
+    .populate('package', 'name image duration category destination')
+    .populate('vehicle', 'vehicleName images vehicleType');
+  sendSuccess(res, { bookings }, 'Your bookings fetched successfully');
+});
 
-  if (!booking) {
-    return sendError(res, 'Booking not found', 404);
+export const getBooking = asyncHandler(async (req, res) => {
+  const booking = await Booking.findById(req.params.id)
+    .populate('package', 'name image duration category')
+    .populate('vehicle', 'vehicleName images vehicleType');
+  if (!booking) return sendError(res, 'Booking not found', 404);
+
+  // Users can only see their own bookings; admins see all
+  if (req.user.role !== 'admin' && String(booking.user) !== String(req.user.id)) {
+    return sendError(res, 'Not authorized to view this booking', 403);
   }
 
   sendSuccess(res, { booking }, 'Booking fetched successfully');
 });
 
-/**
- * @desc    Update booking status
- * @route   PUT /api/bookings/:id/status
- * @access  Private (Admin only)
- */
 export const updateBookingStatus = asyncHandler(async (req, res) => {
-  const { status } = req.body;
+  const { status, reason } = req.body;
+  const allowedStatuses = ['pending', 'confirmed', 'completed', 'cancelled', 'rejected'];
+  if (!allowedStatuses.includes(status)) return sendError(res, 'Invalid status', 400);
 
   const booking = await Booking.findById(req.params.id);
-
-  if (!booking) {
-    return sendError(res, 'Booking not found', 404);
-  }
+  if (!booking) return sendError(res, 'Booking not found', 404);
 
   const previousStatus = booking.status;
   booking.status = status;
   await booking.save();
 
-  // Create activity
-  await Activity.create({
-    user: req.user._id,
-    type: 'booking_updated',
-    description: `Booking status changed from ${previousStatus} to ${status}: ${booking.packageName}`,
-    relatedId: booking._id,
-    relatedModel: 'Booking',
-    metadata: { previousStatus, newStatus: status },
-  });
+  // Send appropriate email
+  const email = booking.customerEmail;
+  if (email) {
+    if (status === 'confirmed') emailService.sendBookingApproved(email, booking);
+    else if (status === 'cancelled') emailService.sendBookingCancelled(email, booking, reason);
+    else if (status === 'rejected') emailService.sendBookingRejected(email, booking, reason);
+  }
 
-  // Notify user if they exist
+  // In-app notification
   if (booking.user) {
     await Notification.create({
       recipient: booking.user,
-      type: `booking_${status}`,
+      type: `booking_${status === 'confirmed' ? 'approved' : status}`,
       title: 'Booking Update',
-      message: `Your booking for ${booking.packageName} has been ${status}.`,
+      message: `Your booking (${booking.bookingId}) for ${booking.packageName || booking.vehicleName} has been ${status}.`,
       relatedId: booking._id,
       relatedModel: 'Booking',
-    });
+    }).catch(() => {});
   }
 
-  sendSuccess(res, { booking }, 'Booking status updated successfully');
+  await Activity.create({
+    user: req.user._id,
+    type: 'booking_updated',
+    description: `Booking ${booking.bookingId} status: ${previousStatus} → ${status}`,
+    relatedId: booking._id,
+    relatedModel: 'Booking',
+    metadata: { previousStatus, newStatus: status },
+  }).catch(() => {});
+
+  sendSuccess(res, { booking }, `Booking ${status} successfully`);
 });
 
-/**
- * @desc    Delete booking
- * @route   DELETE /api/bookings/:id
- * @access  Private (Admin only)
- */
-export const deleteBooking = asyncHandler(async (req, res) => {
-  const booking = await Booking.findById(req.params.id);
-
-  if (!booking) {
-    return sendError(res, 'Booking not found', 404);
-  }
-
-  await booking.deleteOne();
-
-  sendSuccess(res, null, 'Booking deleted successfully');
-});
-
-/**
- * @desc    Cancel booking (User or Admin)
- * @route   PUT /api/bookings/:id/cancel
- * @access  Private
- */
 export const cancelBooking = asyncHandler(async (req, res) => {
   const booking = await Booking.findById(req.params.id);
+  if (!booking) return sendError(res, 'Booking not found', 404);
 
-  if (!booking) {
-    return sendError(res, 'Booking not found', 404);
+  if (req.user.role !== 'admin' && String(booking.user) !== String(req.user.id)) {
+    return sendError(res, 'Not authorized', 403);
   }
+  if (booking.status === 'cancelled') return sendError(res, 'Booking is already cancelled', 400);
+  if (booking.status === 'completed') return sendError(res, 'Cannot cancel a completed booking', 400);
 
-  // Check if user owns this booking or is admin
-  if (booking.user && booking.user.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
-    return sendError(res, 'Not authorized to cancel this booking', 403);
-  }
-
-  // Only pending or confirmed bookings can be cancelled
-  if (!['pending', 'confirmed'].includes(booking.status)) {
-    return sendError(res, 'This booking cannot be cancelled', 400);
-  }
-
-  const previousStatus = booking.status;
   booking.status = 'cancelled';
   await booking.save();
 
-  // Create activity
+  if (booking.customerEmail) {
+    emailService.sendBookingCancelled(booking.customerEmail, booking, 'Cancelled by user');
+  }
+
   await Activity.create({
     user: req.user._id,
     type: 'booking_cancelled',
-    description: `Booking cancelled: ${booking.packageName || booking.vehicleName}`,
+    description: `Booking ${booking.bookingId} cancelled`,
     relatedId: booking._id,
     relatedModel: 'Booking',
-    metadata: { previousStatus },
-  });
+  }).catch(() => {});
 
   sendSuccess(res, { booking }, 'Booking cancelled successfully');
 });
 
-/**
- * @desc    Get user's bookings
- * @route   GET /api/bookings/my
- * @access  Private
- */
-export const getMyBookings = asyncHandler(async (req, res) => {
-  const bookings = await Booking.find({ user: req.user._id })
-    .populate('package', 'name image duration destination')
-    .sort('-createdAt');
+export const deleteBooking = asyncHandler(async (req, res) => {
+  const booking = await Booking.findById(req.params.id);
+  if (!booking) return sendError(res, 'Booking not found', 404);
 
-  sendSuccess(res, { bookings }, 'Your bookings fetched successfully');
+  await Booking.findByIdAndDelete(req.params.id);
+
+  await Activity.create({
+    user: req.user._id,
+    type: 'booking_updated',
+    description: `Booking ${booking.bookingId} deleted permanently`,
+    relatedId: booking._id,
+    relatedModel: 'Booking',
+    metadata: { action: 'deleted' },
+  }).catch(() => {});
+
+  sendSuccess(res, null, 'Booking deleted successfully');
 });
 
-/**
- * @desc    Get booking statistics
- * @route   GET /api/bookings/stats
- * @access  Private (Admin only)
- */
 export const getBookingStats = asyncHandler(async (req, res) => {
-  const stats = await Booking.aggregate([
-    {
-      $group: {
-        _id: '$status',
-        count: { $sum: 1 },
-        totalAmount: { $sum: '$totalAmount' },
-      },
-    },
+  const [total, pending, confirmed, completed, cancelled, revenue] = await Promise.all([
+    Booking.countDocuments(),
+    Booking.countDocuments({ status: 'pending' }),
+    Booking.countDocuments({ status: 'confirmed' }),
+    Booking.countDocuments({ status: 'completed' }),
+    Booking.countDocuments({ status: 'cancelled' }),
+    Booking.aggregate([
+      { $match: { status: 'completed' } },
+      { $group: { _id: null, total: { $sum: '$totalAmount' } } },
+    ]),
   ]);
 
-  const totalBookings = await Booking.countDocuments();
-  const totalRevenue = await Booking.aggregate([
-    { $match: { status: 'completed' } },
-    { $group: { _id: null, total: { $sum: '$totalAmount' } } },
-  ]);
-
-  sendSuccess(
-    res,
-    {
-      stats,
-      totalBookings,
-      totalRevenue: totalRevenue[0]?.total || 0,
+  sendSuccess(res, {
+    stats: {
+      total,
+      pending,
+      confirmed,
+      completed,
+      cancelled,
+      revenue: revenue[0]?.total || 0,
     },
-    'Booking statistics fetched successfully'
-  );
+  }, 'Booking stats fetched');
 });

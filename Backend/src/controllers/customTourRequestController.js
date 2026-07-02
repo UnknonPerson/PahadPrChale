@@ -4,269 +4,145 @@ import Activity from '../models/Activity.js';
 import User from '../models/User.js';
 import asyncHandler from '../middleware/asyncHandler.js';
 import { sendSuccess, sendError, sendPaginated } from '../utils/response.js';
+import emailService from '../utils/emailService.js';
 
-/**
- * @desc    Create a custom tour request
- * @route   POST /api/custom-tours
- * @access  Private
- */
 export const createRequest = asyncHandler(async (req, res) => {
-  const {
-    destinations,
-    startDate,
-    endDate,
-    adults,
-    children,
-    budget,
-    budgetType,
-    accommodationType,
-    transportation,
-    meals,
-    activities,
-    pickupLocation,
-    specialRequests,
-    contactPhone,
-    contactEmail,
-  } = req.body;
+  const { destinations, startDate, endDate, adults, children, budget, budgetType,
+    accommodationType, transportation, meals, activities, pickupLocation,
+    specialRequests, contactPhone, contactEmail } = req.body;
 
-  // Validate dates
-  if (new Date(startDate) >= new Date(endDate)) {
-    return sendError(res, 'End date must be after start date', 400);
-  }
-
-  if (new Date(startDate) < new Date()) {
-    return sendError(res, 'Start date cannot be in the past', 400);
-  }
+  if (new Date(startDate) >= new Date(endDate)) return sendError(res, 'End date must be after start date', 400);
 
   const tourRequest = await CustomTourRequest.create({
-    user: req.user._id,
-    destinations,
-    startDate,
-    endDate,
-    adults,
-    children: children || 0,
-    budget,
-    budgetType: budgetType || 'per_person',
-    accommodationType: accommodationType || 'standard',
-    transportation: transportation || 'car',
-    meals: meals || 'breakfast',
-    activities: activities || [],
-    pickupLocation: pickupLocation || '',
-    specialRequests: specialRequests || '',
-    contactPhone,
-    contactEmail,
+    user: req.user._id, destinations, startDate, endDate, adults,
+    children: children || 0, budget, budgetType: budgetType || 'per_person',
+    accommodationType: accommodationType || 'standard', transportation: transportation || 'car',
+    meals: meals || 'breakfast', activities: activities || [],
+    pickupLocation: pickupLocation || '', specialRequests: specialRequests || '',
+    contactPhone, contactEmail,
   });
 
-  // Create activity
   await Activity.create({
-    user: req.user._id,
-    type: 'custom_tour_requested',
-    description: `User ${req.user.name} requested a custom tour to ${destinations.join(', ')}`,
-    relatedId: tourRequest._id,
-    relatedModel: 'CustomTourRequest',
+    user: req.user._id, type: 'custom_tour_requested',
+    description: `User ${req.user.name} requested custom tour to ${destinations.join(', ')}`,
+    relatedId: tourRequest._id, relatedModel: 'CustomTourRequest',
     metadata: { budget, travelers: adults + (children || 0) },
-  });
+  }).catch(() => {});
 
-  // Notify admins
   const admins = await User.find({ role: 'admin' });
-  await Promise.all(
-    admins.map((admin) =>
-      Notification.create({
-        recipient: admin._id,
-        type: 'tour_request_updated',
-        title: 'New Custom Tour Request',
-        message: `New tour request from ${req.user.name} for ${destinations.join(', ')}`,
-        relatedId: tourRequest._id,
-        relatedModel: 'CustomTourRequest',
-      })
-    )
-  );
+  await Promise.all(admins.map((admin) =>
+    Notification.create({
+      recipient: admin._id, type: 'tour_request_updated',
+      title: 'New Custom Tour Request',
+      message: `New tour request from ${req.user.name} for ${destinations.join(', ')}`,
+      relatedId: tourRequest._id, relatedModel: 'CustomTourRequest',
+    }).catch(() => {})
+  ));
+
+  // Send confirmation email to user
+  const emailAddr = contactEmail || req.user.email;
+  if (emailAddr) {
+    emailService.sendCustomTourSubmitted(emailAddr, {
+      ...tourRequest.toObject(),
+      contactName: req.user.name,
+    });
+  }
 
   sendSuccess(res, { request: tourRequest }, 'Tour request submitted successfully', 201);
 });
 
-/**
- * @desc    Get user's custom tour requests
- * @route   GET /api/custom-tours/my
- * @access  Private
- */
 export const getMyRequests = asyncHandler(async (req, res) => {
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 10;
   const skip = (page - 1) * limit;
-
   const filter = { user: req.user._id };
-  if (req.query.status) {
-    filter.status = req.query.status;
-  }
+  if (req.query.status) filter.status = req.query.status;
 
-  const requests = await CustomTourRequest.find(filter)
-    .sort({ createdAt: -1 })
-    .skip(skip)
-    .limit(limit);
-
-  const total = await CustomTourRequest.countDocuments(filter);
-
-  sendPaginated(res, requests, total, page, limit, 'Tour requests fetched successfully');
+  const [requests, total] = await Promise.all([
+    CustomTourRequest.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit),
+    CustomTourRequest.countDocuments(filter),
+  ]);
+  sendPaginated(res, requests, total, page, limit, 'Your tour requests fetched successfully');
 });
 
-/**
- * @desc    Get single custom tour request
- * @route   GET /api/custom-tours/:id
- * @access  Private
- */
-export const getRequest = asyncHandler(async (req, res) => {
-  const request = await CustomTourRequest.findById(req.params.id).populate('user', 'name email phone profileImage');
-
-  if (!request) {
-    return sendError(res, 'Request not found', 404);
-  }
-
-  // Check ownership or admin
-  if (request.user._id.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
-    return sendError(res, 'Not authorized', 403);
-  }
-
-  sendSuccess(res, { request }, 'Request fetched successfully');
-});
-
-/**
- * @desc    Get all custom tour requests (Admin)
- * @route   GET /api/custom-tours
- * @access  Private/Admin
- */
 export const getAllRequests = asyncHandler(async (req, res) => {
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 20;
   const skip = (page - 1) * limit;
-
   const filter = {};
-  if (req.query.status) {
-    filter.status = req.query.status;
-  }
+  if (req.query.status) filter.status = req.query.status;
+  if (req.query.search) filter.$or = [
+    { destinations: new RegExp(req.query.search, 'i') },
+    { contactEmail: new RegExp(req.query.search, 'i') },
+  ];
 
-  const requests = await CustomTourRequest.find(filter)
-    .populate('user', 'name email phone profileImage')
-    .populate('reviewedBy', 'name email')
-    .sort({ createdAt: -1 })
-    .skip(skip)
-    .limit(limit);
-
-  const total = await CustomTourRequest.countDocuments(filter);
-
+  const [requests, total] = await Promise.all([
+    CustomTourRequest.find(filter)
+      .populate('user', 'name email phone profileImage')
+      .populate('reviewedBy', 'name email')
+      .sort({ createdAt: -1 }).skip(skip).limit(limit),
+    CustomTourRequest.countDocuments(filter),
+  ]);
   sendPaginated(res, requests, total, page, limit, 'Tour requests fetched successfully');
 });
 
-/**
- * @desc    Update custom tour request status (Admin)
- * @route   PUT /api/custom-tours/:id/status
- * @access  Private/Admin
- */
-export const updateStatus = asyncHandler(async (req, res) => {
-  const { status, quotedPrice, adminNotes } = req.body;
+export const getRequest = asyncHandler(async (req, res) => {
+  const request = await CustomTourRequest.findById(req.params.id)
+    .populate('user', 'name email phone profileImage')
+    .populate('reviewedBy', 'name email');
+  if (!request) return sendError(res, 'Tour request not found', 404);
 
-  const request = await CustomTourRequest.findById(req.params.id).populate('user');
-
-  if (!request) {
-    return sendError(res, 'Request not found', 404);
-  }
-
-  const validTransitions = {
-    pending: ['under_review', 'approved', 'rejected'],
-    under_review: ['approved', 'rejected'],
-    approved: ['completed'],
-    rejected: [],
-    completed: [],
-  };
-
-  if (!validTransitions[request.status].includes(status)) {
-    return sendError(res, `Cannot change status from ${request.status} to ${status}`, 400);
-  }
-
-  request.status = status;
-  if (quotedPrice !== undefined) {
-    request.quotedPrice = quotedPrice;
-  }
-  if (adminNotes !== undefined) {
-    request.adminNotes = adminNotes;
-  }
-  request.reviewedBy = req.user._id;
-  request.reviewedAt = new Date();
-  await request.save();
-
-  // Create activity
-  await Activity.create({
-    user: req.user._id,
-    type: 'custom_tour_updated',
-    description: `Admin updated tour request ${request.requestId} to ${status}`,
-    relatedId: request._id,
-    relatedModel: 'CustomTourRequest',
-    metadata: { status, quotedPrice },
-  });
-
-  // Notify user
-  await Notification.create({
-    recipient: request.user._id,
-    type: 'tour_request_updated',
-    title: 'Tour Request Update',
-    message: `Your tour request ${request.requestId} has been ${status}.`,
-    relatedId: request._id,
-    relatedModel: 'CustomTourRequest',
-  });
-
-  sendSuccess(res, { request }, 'Status updated successfully');
-});
-
-/**
- * @desc    Cancel custom tour request (User)
- * @route   PUT /api/custom-tours/:id/cancel
- * @access  Private
- */
-export const cancelRequest = asyncHandler(async (req, res) => {
-  const request = await CustomTourRequest.findById(req.params.id);
-
-  if (!request) {
-    return sendError(res, 'Request not found', 404);
-  }
-
-  // Check ownership
-  if (request.user.toString() !== req.user._id.toString()) {
+  if (req.user.role !== 'admin' && String(request.user._id) !== String(req.user._id)) {
     return sendError(res, 'Not authorized', 403);
   }
+  sendSuccess(res, { request }, 'Tour request fetched successfully');
+});
 
-  if (!['pending', 'under_review'].includes(request.status)) {
-    return sendError(res, 'Cannot cancel this request', 400);
-  }
+export const updateRequestStatus = asyncHandler(async (req, res) => {
+  const { status, adminNotes, quotedPrice } = req.body;
+  const validStatuses = ['pending', 'under_review', 'approved', 'rejected', 'completed'];
+  if (!validStatuses.includes(status)) return sendError(res, 'Invalid status', 400);
 
-  request.status = 'rejected';
-  request.adminNotes = 'Cancelled by user';
+  const request = await CustomTourRequest.findById(req.params.id).populate('user', 'name email');
+  if (!request) return sendError(res, 'Tour request not found', 404);
+
+  request.status = status;
+  if (adminNotes) request.adminNotes = adminNotes;
+  if (quotedPrice) request.quotedPrice = quotedPrice;
+  request.reviewedBy = req.user._id;
   await request.save();
 
-  sendSuccess(res, { request }, 'Request cancelled successfully');
-});
+  await Activity.create({
+    user: req.user._id, type: 'custom_tour_updated',
+    description: `Custom tour request ${request.requestId} status updated to ${status}`,
+    relatedId: request._id, relatedModel: 'CustomTourRequest',
+    metadata: { status, quotedPrice },
+  }).catch(() => {});
 
-/**
- * @desc    Delete custom tour request
- * @route   DELETE /api/custom-tours/:id
- * @access  Private/Admin
- */
-export const deleteRequest = asyncHandler(async (req, res) => {
-  const request = await CustomTourRequest.findById(req.params.id);
-
-  if (!request) {
-    return sendError(res, 'Request not found', 404);
+  if (request.user?._id) {
+    await Notification.create({
+      recipient: request.user._id, type: 'tour_request_updated',
+      title: 'Custom Tour Update',
+      message: `Your tour request (${request.requestId}) has been ${status}.${quotedPrice ? ` Quoted price: ₹${quotedPrice.toLocaleString('en-IN')}` : ''}`,
+      relatedId: request._id, relatedModel: 'CustomTourRequest',
+    }).catch(() => {});
   }
 
-  await request.deleteOne();
-
-  sendSuccess(res, null, 'Request deleted successfully');
+  sendSuccess(res, { request }, 'Tour request updated successfully');
 });
 
-/**
- * @desc    Get custom tour request stats (Admin)
- * @route   GET /api/custom-tours/stats
- * @access  Private/Admin
- */
+export const cancelRequest = asyncHandler(async (req, res) => {
+  const request = await CustomTourRequest.findById(req.params.id);
+  if (!request) return sendError(res, 'Tour request not found', 404);
+  if (String(request.user) !== String(req.user._id) && req.user.role !== 'admin') {
+    return sendError(res, 'Not authorized', 403);
+  }
+  if (request.status === 'completed') return sendError(res, 'Cannot cancel completed request', 400);
+  request.status = 'rejected';
+  await request.save();
+  sendSuccess(res, { request }, 'Tour request cancelled successfully');
+});
+
 export const getStats = asyncHandler(async (req, res) => {
   const [total, pending, underReview, approved, rejected, completed] = await Promise.all([
     CustomTourRequest.countDocuments(),
@@ -276,25 +152,5 @@ export const getStats = asyncHandler(async (req, res) => {
     CustomTourRequest.countDocuments({ status: 'rejected' }),
     CustomTourRequest.countDocuments({ status: 'completed' }),
   ]);
-
-  const totalBudget = await CustomTourRequest.aggregate([
-    { $match: { status: 'approved' } },
-    { $group: { _id: null, total: { $sum: '$budget' } } },
-  ]);
-
-  sendSuccess(
-    res,
-    {
-      stats: {
-        total,
-        pending,
-        underReview,
-        approved,
-        rejected,
-        completed,
-        totalBudget: totalBudget[0]?.total || 0,
-      },
-    },
-    'Stats fetched successfully'
-  );
+  sendSuccess(res, { stats: { total, pending, underReview, approved, rejected, completed } }, 'Stats fetched');
 });

@@ -1,25 +1,17 @@
-import express from 'express';
-import {
-  getAllHotels,
-  getHotel,
-  createHotel,
-  updateHotel,
-  deleteHotel,
-  getHotelsByDestination,
-} from '../controllers/hotelController.js';
+import { Router } from 'express';
+import { getAllHotels, getHotel, getHotelsByDestination, createHotel, updateHotel, deleteHotel } from '../controllers/hotelController.js';
 import { protect } from '../middleware/auth.js';
 import { adminOnly } from '../middleware/admin.js';
+import { uploadMultiple, handleMultipleUploads } from '../middleware/cloudinaryUpload.js';
 
-const router = express.Router();
+const router = Router();
 
-// Public routes
-router.get('/destination/:destinationId', getHotelsByDestination);
 router.get('/', getAllHotels);
+router.get('/destination/:destination', getHotelsByDestination);
 router.get('/:id', getHotel);
 
-// Admin protected routes
-router.post('/', protect, adminOnly, createHotel);
-router.put('/:id', protect, adminOnly, updateHotel);
+router.post('/', protect, adminOnly, uploadMultiple.array('images', 5), handleMultipleUploads('hotels'), createHotel);
+router.put('/:id', protect, adminOnly, uploadMultiple.array('images', 5), handleMultipleUploads('hotels'), updateHotel);
 router.delete('/:id', protect, adminOnly, deleteHotel);
 
 export default router;

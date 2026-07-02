@@ -1,62 +1,33 @@
 import mongoose from 'mongoose';
 
+const vehicleImageSchema = new mongoose.Schema({
+  url: { type: String, required: true },
+  publicId: { type: String, default: '' },
+}, { _id: false });
+
 const vehicleSchema = new mongoose.Schema(
   {
     vehicleType: {
       type: String,
+      enum: ['SUV', 'Sedan', 'Hatchback', 'Tempo Traveller', 'Bus', 'Luxury', 'Bike'],
       required: [true, 'Vehicle type is required'],
-      trim: true,
     },
-    vehicleName: {
-      type: String,
-      required: [true, 'Vehicle name is required'],
-      trim: true,
-    },
-    seats: {
-      type: Number,
-      required: [true, 'Number of seats is required'],
-      min: [1, 'Vehicle must have at least 1 seat'],
-      max: [50, 'Vehicle cannot have more than 50 seats'],
-    },
-    destination: {
-      type: String,
-      required: [true, 'Destination is required'],
-      trim: true,
-    },
-    pricePerDay: {
-      type: Number,
-      required: [true, 'Price per day is required'],
-      min: [0, 'Price cannot be negative'],
-    },
-    pricePerKm: {
-      type: Number,
-      default: 0,
-      min: [0, 'Price cannot be negative'],
-    },
-    availability: {
-      type: Boolean,
-      default: true,
-    },
-    images: [
-      {
-        type: String,
-      },
-    ],
-    features: [
-      {
-        type: String,
-      },
-    ],
-    description: {
-      type: String,
-      default: '',
-    },
+    vehicleName: { type: String, required: [true, 'Vehicle name is required'], trim: true },
+    seats: { type: Number, required: [true, 'Seat count is required'], min: 1, max: 50 },
+    destination: { type: String, trim: true },
+    pricePerDay: { type: Number, required: [true, 'Price per day is required'], min: 0 },
+    pricePerKm: { type: Number, min: 0, default: 0 },
+    availability: { type: Boolean, default: true },
+    images: [vehicleImageSchema],
+    features: [{ type: String }],
+    description: { type: String },
+    rating: { type: Number, default: 4.0, min: 0, max: 5 },
   },
-  {
-    timestamps: true,
-  }
+  { timestamps: true, toJSON: { virtuals: true }, toObject: { virtuals: true } }
 );
 
-const Vehicle = mongoose.model('Vehicle', vehicleSchema);
+vehicleSchema.index({ destination: 1, availability: 1 });
+vehicleSchema.index({ vehicleName: 'text', vehicleType: 'text' });
 
+const Vehicle = mongoose.model('Vehicle', vehicleSchema);
 export default Vehicle;

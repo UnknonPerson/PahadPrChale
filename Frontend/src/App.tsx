@@ -1,11 +1,13 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { ThemeProvider } from './context/ThemeContext';
 import { AuthProvider } from './context/AuthContext';
+import { ApiProvider } from './services/ApiContext';
 import { WishlistProvider } from './context/WishlistContext';
 import { ToastProvider } from './context/ToastContext';
-import { ApiProvider } from './services/ApiContext';
 import Layout from './components/layout/Layout';
 import Home from './pages/Home';
+import About from './pages/About';
+import Contact from './pages/Contact';
 import Packages from './pages/Packages';
 import PackageDetail from './pages/PackageDetail';
 import Destinations from './pages/Destinations';
@@ -16,17 +18,16 @@ import Vehicles from './pages/Vehicles';
 import VehicleDetail from './pages/VehicleDetail';
 import Booking from './pages/Booking';
 import TripPlanner from './pages/TripPlanner';
+import Profile from './pages/Profile';
 import MyBookings from './pages/MyBookings';
 import Wishlist from './pages/Wishlist';
-import About from './pages/About';
-import Contact from './pages/Contact';
-import Profile from './pages/Profile';
-import UserSettings from './pages/Settings';
+import Settings from './pages/Settings';
 import NotFound from './pages/NotFound';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
+import VerifyEmail from './pages/VerifyEmail';
 import AdminLayout from './pages/admin/AdminLayout';
 import Dashboard from './pages/admin/Dashboard';
 import BookingsManagement from './pages/admin/Bookings';
@@ -78,66 +79,25 @@ export default function App() {
                   <Route path="/register" element={<Register />} />
                   <Route path="/forgot-password" element={<ForgotPassword />} />
                   <Route path="/reset-password/:token" element={<ResetPassword />} />
+                  <Route path="/verify-email/:token" element={<VerifyEmail />} />
 
                   {/* Protected User Routes */}
-                  <Route
-                    path="/profile"
-                    element={
-                      <ProtectedRoute>
-                        <Layout />
-                      </ProtectedRoute>
-                    }
-                  >
+                  <Route path="/profile" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
                     <Route index element={<Profile />} />
                   </Route>
-                  <Route
-                    path="/bookings/my"
-                    element={
-                      <ProtectedRoute>
-                        <Layout />
-                      </ProtectedRoute>
-                    }
-                  >
+                  <Route path="/bookings/my" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
                     <Route index element={<MyBookings />} />
                   </Route>
-                  <Route
-                    path="/wishlist"
-                    element={
-                      <ProtectedRoute>
-                        <Layout />
-                      </ProtectedRoute>
-                    }
-                  >
+                  <Route path="/wishlist" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
                     <Route index element={<Wishlist />} />
                   </Route>
-                  <Route
-                    path="/settings"
-                    element={
-                      <ProtectedRoute>
-                        <Layout />
-                      </ProtectedRoute>
-                    }
-                  >
-                    <Route index element={<UserSettings />} />
+                  <Route path="/settings" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+                    <Route index element={<Settings />} />
                   </Route>
-                  <Route
-                    path="/my-custom-tours"
-                    element={
-                      <ProtectedRoute>
-                        <Layout />
-                      </ProtectedRoute>
-                    }
-                  >
+                  <Route path="/my-custom-tours" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
                     <Route index element={<MyCustomTours />} />
                   </Route>
-                  <Route
-                    path="/my-messages"
-                    element={
-                      <ProtectedRoute>
-                        <Layout />
-                      </ProtectedRoute>
-                    }
-                  >
+                  <Route path="/my-messages" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
                     <Route index element={<MyMessages />} />
                   </Route>
 

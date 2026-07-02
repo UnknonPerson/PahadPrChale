@@ -1,179 +1,116 @@
 import Destination from '../models/Destination.js';
+import Activity from '../models/Activity.js';
 import asyncHandler from '../middleware/asyncHandler.js';
 import { sendSuccess, sendError, sendPaginated } from '../utils/response.js';
+import { deleteFromCloudinary } from '../middleware/cloudinaryUpload.js';
 
-/**
- * @desc    Get all destinations
- * @route   GET /api/destinations
- * @access  Public
- */
+const parseField = (field) => {
+  if (typeof field === 'string') { try { return JSON.parse(field); } catch { return field; } }
+  return field;
+};
+
 export const getAllDestinations = asyncHandler(async (req, res) => {
-  const {
-    page = 1,
-    limit = 10,
-    state,
-    search,
-    sort = '-createdAt',
-  } = req.query;
-
-  // Build query
+  const { page = 1, limit = 10, state, search, featured, sort = '-createdAt' } = req.query;
   const query = { isActive: true };
-
-  if (state) {
-    query.state = state;
-  }
-
-  if (search) {
-    query.$text = { $search: search };
-  }
+  if (state) query.state = state;
+  if (featured === 'true') query.featured = true;
+  if (search) query.$text = { $search: search };
 
   const skip = (parseInt(page) - 1) * parseInt(limit);
-
-  const destinations = await Destination.find(query)
-    .sort(sort)
-    .skip(skip)
-    .limit(parseInt(limit));
-
-  const total = await Destination.countDocuments(query);
-
+  const [destinations, total] = await Promise.all([
+    Destination.find(query).sort(sort).skip(skip).limit(parseInt(limit)),
+    Destination.countDocuments(query),
+  ]);
   sendPaginated(res, destinations, total, page, limit, 'Destinations fetched successfully');
 });
 
-/**
- * @desc    Get single destination
- * @route   GET /api/destinations/:id
- * @access  Public
- */
 export const getDestination = asyncHandler(async (req, res) => {
-  const destination = await Destination.findById(req.params.id);
-
-  if (!destination) {
-    return sendError(res, 'Destination not found', 404);
-  }
-
-  sendSuccess(res, { destination }, 'Destination fetched successfully');
+  const dest = await Destination.findById(req.params.id);
+  if (!dest) return sendError(res, 'Destination not found', 404);
+  sendSuccess(res, { destination: dest }, 'Destination fetched successfully');
 });
 
-/**
- * @desc    Create new destination
- * @route   POST /api/destinations
- * @access  Private (Admin only)
- */
 export const createDestination = asyncHandler(async (req, res) => {
-  const {
-    name,
-    state,
-    description,
-    shortDescription,
-    image,
-    gallery,
-    highlights,
-    bestTime,
-    altitude,
-    temperature,
-    rating,
-    startingPrice,
-    activities,
-  } = req.body;
+  const body = req.body;
+  const image = req.uploadedImage?.url || body.image || '';
+  const imagePublicId = req.uploadedImage?.public_id || '';
+  const gallery = req.uploadedImages?.map((i) => i.url) || parseField(body.gallery) || [];
+  const galleryPublicIds = req.uploadedImages?.map((i) => i.public_id) || [];
 
-  const destination = await Destination.create({
-    name,
-    state,
-    description,
-    shortDescription,
-    image,
-    gallery: gallery || [],
-    highlights: highlights || [],
-    bestTime,
-    altitude,
-    temperature,
-    rating: rating || 4.5,
-    startingPrice,
-    activities: activities || [],
+  const dest = await Destination.create({
+    name: body.name, state: body.state, description: body.description,
+    shortDescription: body.shortDescription, image, imagePublicId, gallery, galleryPublicIds,
+    highlights: parseField(body.highlights) || [],
+    activities: parseField(body.activities) || [],
+    bestTime: body.bestTime, altitude: body.altitude, temperature: body.temperature,
+    startingPrice: body.startingPrice, isActive: true,
   });
 
-  sendSuccess(res, { destination }, 'Destination created successfully', 201);
+  await Activity.create({
+    user: req.user._id, type: 'destination_created',
+    description: `Destination created: ${body.name}`, relatedId: dest._id, relatedModel: 'Destination',
+  }).catch(() => {});
+
+  sendSuccess(res, { destination: dest }, 'Destination created successfully', 201);
 });
 
-/**
- * @desc    Update destination
- * @route   PUT /api/destinations/:id
- * @access  Private (Admin only)
- */
 export const updateDestination = asyncHandler(async (req, res) => {
-  let destination = await Destination.findById(req.params.id);
+  const dest = await Destination.findById(req.params.id);
+  if (!dest) return sendError(res, 'Destination not found', 404);
 
-  if (!destination) {
-    return sendError(res, 'Destination not found', 404);
+  const body = req.body;
+  const updates = { ...body };
+
+  if (req.uploadedImage) {
+    if (dest.imagePublicId) await deleteFromCloudinary(dest.imagePublicId);
+    updates.image = req.uploadedImage.url;
+    updates.imagePublicId = req.uploadedImage.public_id;
   }
 
-  destination = await Destination.findByIdAndUpdate(req.params.id, req.body, {
-    new: true,
-    runValidators: true,
-  });
+  for (const field of ['highlights', 'activities', 'gallery']) {
+    if (updates[field]) updates[field] = parseField(updates[field]);
+  }
 
-  sendSuccess(res, { destination }, 'Destination updated successfully');
+  const updated = await Destination.findByIdAndUpdate(req.params.id, updates, { new: true, runValidators: true });
+
+  await Activity.create({
+    user: req.user._id, type: 'destination_updated',
+    description: `Destination updated: ${updated.name}`, relatedId: updated._id, relatedModel: 'Destination',
+  }).catch(() => {});
+
+  sendSuccess(res, { destination: updated }, 'Destination updated successfully');
 });
 
-/**
- * @desc    Delete destination
- * @route   DELETE /api/destinations/:id
- * @access  Private (Admin only)
- */
 export const deleteDestination = asyncHandler(async (req, res) => {
-  const destination = await Destination.findById(req.params.id);
+  const dest = await Destination.findById(req.params.id);
+  if (!dest) return sendError(res, 'Destination not found', 404);
+  dest.isActive = false;
+  await dest.save();
 
-  if (!destination) {
-    return sendError(res, 'Destination not found', 404);
-  }
-
-  // Soft delete - just set isActive to false
-  destination.isActive = false;
-  await destination.save();
+  await Activity.create({
+    user: req.user._id, type: 'destination_deleted',
+    description: `Destination deleted: ${dest.name}`, relatedId: dest._id, relatedModel: 'Destination',
+  }).catch(() => {});
 
   sendSuccess(res, null, 'Destination deleted successfully');
 });
 
-/**
- * @desc    Hard delete destination
- * @route   DELETE /api/destinations/:id/permanent
- * @access  Private (Admin only)
- */
-export const hardDeleteDestination = asyncHandler(async (req, res) => {
-  const destination = await Destination.findByIdAndDelete(req.params.id);
-
-  if (!destination) {
-    return sendError(res, 'Destination not found', 404);
-  }
-
+export const permanentDeleteDestination = asyncHandler(async (req, res) => {
+  const dest = await Destination.findById(req.params.id);
+  if (!dest) return sendError(res, 'Destination not found', 404);
+  if (dest.imagePublicId) await deleteFromCloudinary(dest.imagePublicId);
+  for (const pid of (dest.galleryPublicIds || [])) await deleteFromCloudinary(pid);
+  await Destination.findByIdAndDelete(req.params.id);
   sendSuccess(res, null, 'Destination permanently deleted');
 });
 
-/**
- * @desc    Get all states (unique)
- * @route   GET /api/destinations/states
- * @access  Public
- */
 export const getStates = asyncHandler(async (req, res) => {
   const states = await Destination.distinct('state', { isActive: true });
-
   sendSuccess(res, { states }, 'States fetched successfully');
 });
 
-/**
- * @desc    Get featured destinations
- * @route   GET /api/destinations/featured
- * @access  Public
- */
 export const getFeaturedDestinations = asyncHandler(async (req, res) => {
-  const { limit = 4 } = req.query;
-
-  const destinations = await Destination.find({
-    isActive: true,
-    rating: { $gte: 4.5 },
-  })
-    .sort('-rating')
-    .limit(parseInt(limit));
-
-  sendSuccess(res, { destinations }, 'Featured destinations fetched successfully');
+  const { limit = 6 } = req.query;
+  const dests = await Destination.find({ isActive: true }).sort('-rating -reviewCount').limit(parseInt(limit));
+  sendSuccess(res, { destinations: dests }, 'Featured destinations fetched');
 });
