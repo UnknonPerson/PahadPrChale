@@ -1,15 +1,9 @@
 import express from 'express';
 import {
-  createReview,
-  getPackageReviews,
-  getMyReviews,
-  getAllReviews,
-  getReviewStats,
-  updateReviewStatus,
-  deleteReview,
-  canReviewBooking,
+  createReview, getPackageReviews, getMyReviews, getAllReviews,
+  getReviewStats, updateReviewStatus, deleteReview, canReviewBooking,
 } from '../controllers/reviewController.js';
-import { protect } from '../middleware/auth.js';
+import { protect, requireVerifiedEmail } from '../middleware/auth.js';
 import { adminOnly } from '../middleware/admin.js';
 
 const router = express.Router();
@@ -21,7 +15,8 @@ router.get('/package/:packageId', getPackageReviews);
 // Protected routes
 router.use(protect);
 
-router.post('/', createReview);
+// Posting a review requires verified email
+router.post('/', requireVerifiedEmail, createReview);
 router.get('/my', getMyReviews);
 router.get('/can-review/:bookingId', canReviewBooking);
 router.delete('/:id', deleteReview);

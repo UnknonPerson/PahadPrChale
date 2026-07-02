@@ -4,9 +4,9 @@ import Footer from './Footer';
 
 export default function Layout() {
   return (
-    <div className="min-h-screen bg-surface-50 dark:bg-surface-950 transition-colors duration-300">
+    <div className="min-h-screen bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 transition-colors duration-200">
       <Navbar />
-      <main>
+      <main className="min-h-[calc(100vh-68px)]">
         <Outlet />
       </main>
       <Footer />

@@ -1,17 +1,20 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { User, Mail, Phone, Lock, Eye, EyeOff, Save, ShieldCheck, RefreshCw, TriangleAlert as AlertTriangle } from 'lucide-react';
+import { User, Mail, Phone, Lock, Eye, EyeOff, Save, ShieldCheck, TriangleAlert as AlertTriangle, Camera, LogOut, Calendar } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import ImageUpload from '../components/ui/ImageUpload';
+import EmailVerificationModal from '../components/ui/EmailVerificationModal';
 import authService from '../services/authService';
 
 export default function Profile() {
-  const { user, updateProfile } = useAuth();
+  const { user, updateProfile, logout } = useAuth();
   const { success, error } = useToast();
+  const navigate = useNavigate();
 
   const [name, setName] = useState(user?.name || '');
-  const [phone, setPhone] = useState(user?.phone || '');
+  const [phone, setPhone] = useState((user as any)?.phone || '');
   const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
 
@@ -21,14 +24,18 @@ export default function Profile() {
   const [showPasswords, setShowPasswords] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
 
-  const [resendingVerification, setResendingVerification] = useState(false);
+  const [showVerifyModal, setShowVerifyModal] = useState(false);
+
+  const isVerified = (user as any)?.isEmailVerified;
+  const avatarSrc = (user as any)?.profileImage || user?.avatar ||
+    `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'U')}&background=10B981&color=fff&size=128`;
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) { error('Name is required'); return; }
     setSaving(true);
     const result = await updateProfile({ name, phone });
-    if (result.success) success('Profile updated successfully');
+    if (result.success) success('Profile updated');
     else error(result.message || 'Failed to update profile');
     setSaving(false);
   };
@@ -39,8 +46,10 @@ export default function Profile() {
       const formData = new FormData();
       formData.append('profileImage', file);
       const res = await authService.updateProfile(formData) as any;
-      const userData = res?.data?.user || res?.user || res;
-      await updateProfile({ profileImage: userData.profileImage });
+      const newUser = res?.data?.user || res?.user || res;
+      if (newUser?.profileImage) {
+        await updateProfile({ profileImage: newUser.profileImage } as any);
+      }
       success('Profile photo updated');
     } catch {
       error('Image upload failed');
@@ -52,7 +61,7 @@ export default function Profile() {
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentPassword || !newPassword || !confirmPassword) { error('All fields are required'); return; }
-    if (newPassword !== confirmPassword) { error('New passwords do not match'); return; }
+    if (newPassword !== confirmPassword) { error('Passwords do not match'); return; }
     if (newPassword.length < 6) { error('Password must be at least 6 characters'); return; }
     setChangingPassword(true);
     try {
@@ -60,162 +69,222 @@ export default function Profile() {
       success('Password changed successfully');
       setCurrentPassword(''); setNewPassword(''); setConfirmPassword('');
     } catch (err: any) {
-      error(err.response?.data?.message || 'Failed to change password');
+      error(err?.response?.data?.message || 'Failed to change password');
     } finally {
       setChangingPassword(false);
     }
   };
 
-  const handleResendVerification = async () => {
-    if (!user?.email) return;
-    setResendingVerification(true);
-    try {
-      await authService.resendVerification(user.email);
-      success('Verification email sent. Check your inbox.');
-    } catch (err: any) {
-      error(err.response?.data?.message || 'Failed to send verification email');
-    } finally {
-      setResendingVerification(false);
-    }
+  const handleLogout = async () => {
+    await logout();
+    navigate('/');
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 py-8 md:py-12">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+
+        {/* Page header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-display font-bold text-gray-900 dark:text-white">My Profile</h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-1">Manage your account information</p>
+          <h1 className="text-2xl md:text-3xl font-display font-bold text-gray-900 dark:text-white">My Profile</h1>
+          <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">Manage your account settings and personal information</p>
         </div>
 
         {/* Email verification banner */}
-        {user && !(user as any).isEmailVerified && (
+        {!isVerified && (
           <motion.div
-            initial={{ opacity: 0, y: -10 }}
+            initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mb-6 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-300 dark:border-yellow-700 rounded-xl flex items-start gap-3"
+            className="mb-6 flex items-center gap-3 p-4 bg-amber-50 dark:bg-amber-900/15 border border-amber-200 dark:border-amber-800/50 rounded-xl"
           >
-            <AlertTriangle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
-            <div className="flex-1">
-              <p className="text-sm font-medium text-yellow-800 dark:text-yellow-300">Email not verified</p>
-              <p className="text-xs text-yellow-700 dark:text-yellow-400 mt-0.5">Verify your email to access all features.</p>
+            <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
+                Your email is not verified.
+              </p>
+              <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5 hidden sm:block">
+                Verify your email before booking trips or using protected features.
+              </p>
             </div>
             <button
-              onClick={handleResendVerification}
-              disabled={resendingVerification}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-yellow-200 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-200 text-xs font-medium hover:bg-yellow-300 transition-colors disabled:opacity-50"
+              onClick={() => setShowVerifyModal(true)}
+              className="flex-shrink-0 px-3 py-1.5 rounded-lg bg-amber-200 dark:bg-amber-800/60 text-amber-800 dark:text-amber-200 text-xs font-semibold hover:bg-amber-300 dark:hover:bg-amber-700/60 transition-colors"
             >
-              {resendingVerification ? <span className="inline-block animate-spin h-3 w-3 border border-current border-t-transparent rounded-full" /> : <RefreshCw className="w-3 h-3" />}
-              Resend Email
+              Verify Email
             </button>
           </motion.div>
         )}
 
-        <div className="space-y-6">
-          {/* Profile Photo */}
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass-card p-6">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Profile Photo</h2>
-            <div className="flex items-center gap-6">
-              <ImageUpload
-                shape="circle"
-                current={user?.avatar || user?.profileImage}
-                onUpload={handleImageUpload}
-                uploading={uploadingImage}
-                label="Change profile photo"
-              />
-              <div>
-                <p className="font-semibold text-gray-900 dark:text-white text-lg">{user?.name}</p>
-                <div className="flex items-center gap-2 mt-1">
-                  <p className="text-gray-500 dark:text-gray-400 text-sm">{user?.email}</p>
-                  {(user as any)?.isEmailVerified ? (
-                    <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-medium">
-                      <ShieldCheck className="w-3 h-3" /> Verified
-                    </span>
-                  ) : (
-                    <span className="px-2 py-0.5 rounded-full bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 text-xs font-medium">
-                      Unverified
-                    </span>
-                  )}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+          {/* ── Sidebar: Profile Card ── */}
+          <div className="space-y-4">
+            <motion.div
+              initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+              className="glass-card p-6 text-center"
+            >
+              {/* Avatar */}
+              <div className="relative inline-block mb-4">
+                <ImageUpload
+                  shape="circle"
+                  current={avatarSrc}
+                  onUpload={handleImageUpload}
+                  uploading={uploadingImage}
+                  label="Change avatar"
+                  className="mx-auto"
+                />
+                <div className="absolute bottom-1 right-1 w-6 h-6 rounded-full bg-primary-500 flex items-center justify-center border-2 border-white dark:border-gray-900 pointer-events-none">
+                  <Camera className="w-3 h-3 text-white" />
                 </div>
-                <span className="mt-2 inline-flex items-center px-2.5 py-0.5 rounded-full bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-400 text-xs font-medium capitalize">
-                  {(user as any)?.role || 'user'}
+              </div>
+
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white">{user?.name}</h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5 truncate">{user?.email}</p>
+
+              <div className="flex items-center justify-center gap-2 mt-3">
+                <span className={`badge ${isVerified ? 'badge-green' : 'badge-yellow'}`}>
+                  {isVerified ? <><ShieldCheck className="w-3 h-3" /> Verified</> : <><AlertTriangle className="w-3 h-3" /> Unverified</>}
                 </span>
+                <span className="badge badge-primary capitalize">{(user as any)?.role || 'User'}</span>
               </div>
-            </div>
-          </motion.div>
 
-          {/* Personal Info */}
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="glass-card p-6">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Personal Information</h2>
-            <form onSubmit={handleSaveProfile} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Full Name</label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="input-field pl-10" placeholder="Your full name" required />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email Address</label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <input type="email" value={user?.email} className="input-field pl-10 bg-gray-100 dark:bg-gray-700 cursor-not-allowed" disabled />
-                </div>
-                <p className="text-xs text-gray-400 mt-1">Email cannot be changed</p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Phone Number</label>
-                <div className="relative">
-                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className="input-field pl-10" placeholder="+91 98765 43210" />
-                </div>
-              </div>
-              <div className="flex justify-end">
-                <button type="submit" disabled={saving} className="btn-primary flex items-center gap-2 px-6 py-2.5 rounded-xl">
-                  {saving ? <span className="inline-block animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" /> : <Save className="w-4 h-4" />}
-                  {saving ? 'Saving...' : 'Save Changes'}
-                </button>
-              </div>
-            </form>
-          </motion.div>
+              {(user as any)?.lastLogin && (
+                <p className="text-xs text-gray-400 mt-3 flex items-center justify-center gap-1">
+                  <Calendar className="w-3 h-3" />
+                  Last login: {new Date((user as any).lastLogin).toLocaleDateString('en-IN')}
+                </p>
+              )}
+            </motion.div>
 
-          {/* Change Password */}
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="glass-card p-6">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Change Password</h2>
-            <form onSubmit={handleChangePassword} className="space-y-4">
+            {/* Quick links */}
+            <motion.div
+              initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}
+              className="glass-card p-4 space-y-1"
+            >
               {[
-                { label: 'Current Password', value: currentPassword, setter: setCurrentPassword },
-                { label: 'New Password', value: newPassword, setter: setNewPassword },
-                { label: 'Confirm New Password', value: confirmPassword, setter: setConfirmPassword },
-              ].map(({ label, value, setter }) => (
-                <div key={label}>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{label}</label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                { to: '/bookings/my', label: 'My Bookings' },
+                { to: '/my-custom-tours', label: 'My Custom Tours' },
+                { to: '/my-messages', label: 'My Messages' },
+                { to: '/wishlist', label: 'Wishlist' },
+              ].map(({ to, label }) => (
+                <Link
+                  key={to}
+                  to={to}
+                  className="flex items-center justify-between px-3 py-2.5 rounded-xl text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                >
+                  {label}
+                  <span className="text-gray-400">›</span>
+                </Link>
+              ))}
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-2 w-full px-3 py-2.5 rounded-xl text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors"
+              >
+                <LogOut className="w-4 h-4" /> Sign Out
+              </button>
+            </motion.div>
+          </div>
+
+          {/* ── Main: Forms ── */}
+          <div className="lg:col-span-2 space-y-6">
+
+            {/* Personal Info */}
+            <motion.div
+              initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
+              className="glass-card p-6"
+            >
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-5 flex items-center gap-2">
+                <User className="w-5 h-5 text-primary-500" />Personal Information
+              </h3>
+              <form onSubmit={handleSaveProfile} className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Full Name</label>
                     <input
-                      type={showPasswords ? 'text' : 'password'}
-                      value={value}
-                      onChange={(e) => setter(e.target.value)}
-                      className="input-field pl-10 pr-10"
-                      placeholder="••••••••"
-                      required
+                      type="text" value={name} onChange={e => setName(e.target.value)}
+                      className="input-field" placeholder="Your name" required
                     />
                   </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Phone Number</label>
+                    <input
+                      type="tel" value={phone} onChange={e => setPhone(e.target.value)}
+                      className="input-field" placeholder="+91 98765 43210"
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Email Address</label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <input
+                        type="email" value={user?.email || ''} readOnly
+                        className="input-field pl-9 bg-gray-50 dark:bg-gray-800/50 cursor-not-allowed"
+                      />
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1">Email address cannot be changed</p>
+                  </div>
                 </div>
-              ))}
-              <div className="flex items-center justify-between">
-                <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-600 dark:text-gray-400">
-                  <input type="checkbox" checked={showPasswords} onChange={(e) => setShowPasswords(e.target.checked)} className="rounded" />
-                  Show passwords
-                </label>
-                <button type="submit" disabled={changingPassword} className="btn-primary flex items-center gap-2 px-6 py-2.5 rounded-xl">
-                  {changingPassword ? <span className="inline-block animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" /> : <Lock className="w-4 h-4" />}
-                  {changingPassword ? 'Updating...' : 'Update Password'}
-                </button>
-              </div>
-            </form>
-          </motion.div>
+                <div className="flex justify-end pt-2">
+                  <button type="submit" disabled={saving} className="btn-primary">
+                    {saving
+                      ? <><span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Saving...</>
+                      : <><Save className="w-4 h-4" />Save Changes</>
+                    }
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+
+            {/* Change Password */}
+            <motion.div
+              initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
+              className="glass-card p-6"
+            >
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-5 flex items-center gap-2">
+                <Lock className="w-5 h-5 text-primary-500" />Change Password
+              </h3>
+              <form onSubmit={handleChangePassword} className="space-y-4">
+                {[
+                  { label: 'Current Password', val: currentPassword, set: setCurrentPassword },
+                  { label: 'New Password',      val: newPassword,     set: setNewPassword },
+                  { label: 'Confirm Password',  val: confirmPassword, set: setConfirmPassword },
+                ].map(({ label, val, set }) => (
+                  <div key={label}>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">{label}</label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <input
+                        type={showPasswords ? 'text' : 'password'}
+                        value={val} onChange={e => set(e.target.value)}
+                        className="input-field pl-9 pr-10" placeholder="••••••••" required
+                      />
+                      {label === 'Current Password' && (
+                        <button type="button" onClick={() => setShowPasswords(!showPasswords)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                          {showPasswords ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                <div className="flex justify-end pt-2">
+                  <button type="submit" disabled={changingPassword} className="btn-primary">
+                    {changingPassword
+                      ? <><span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Updating...</>
+                      : <><Lock className="w-4 h-4" />Update Password</>
+                    }
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
         </div>
       </div>
+
+      <EmailVerificationModal
+        isOpen={showVerifyModal}
+        onClose={() => setShowVerifyModal(false)}
+        actionName="use protected features like bookings and reviews"
+      />
     </div>
   );
 }

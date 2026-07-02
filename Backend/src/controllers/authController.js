@@ -7,7 +7,7 @@ import { sendSuccess, sendError } from '../utils/response.js';
 import emailService from '../utils/emailService.js';
 import { deleteFromCloudinary } from '../middleware/cloudinaryUpload.js';
 
-// ─── Cookie helper ────────────────────────────────────────────────────────────
+// ─── Cookie helper ─────────────────────────────────────────────────────────
 
 const setTokenCookie = (res, token) => {
   res.cookie('token', token, {
@@ -27,24 +27,19 @@ const clearTokenCookie = (res) => {
   });
 };
 
-// ─── Register ─────────────────────────────────────────────────────────────────
+// ─── Register ──────────────────────────────────────────────────────────────
 
 export const register = asyncHandler(async (req, res) => {
   const { name, email, password, phone } = req.body;
-
-  if (!name?.trim() || !email?.trim() || !password) {
+  if (!name?.trim() || !email?.trim() || !password)
     return sendError(res, 'Name, email and password are required', 400);
-  }
-  if (password.length < 6) {
+  if (password.length < 6)
     return sendError(res, 'Password must be at least 6 characters', 400);
-  }
 
   const existing = await User.findOne({ email: email.toLowerCase() });
   if (existing) return sendError(res, 'An account with this email already exists', 409);
 
   const user = new User({ name: name.trim(), email: email.toLowerCase().trim(), password, phone });
-
-  // Generate email verification token
   const verificationToken = user.createEmailVerificationToken();
   await user.save();
 
@@ -68,14 +63,14 @@ export const register = asyncHandler(async (req, res) => {
   );
 });
 
-// ─── Login ────────────────────────────────────────────────────────────────────
+// ─── Login ─────────────────────────────────────────────────────────────────
+// NOTE: Login does NOT check email verification. Verification is only
+// required for specific actions (booking, reviews, messages) via
+// the requireVerifiedEmail middleware.
 
 export const login = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
-
-  if (!email || !password) {
-    return sendError(res, 'Email and password are required', 400);
-  }
+  if (!email || !password) return sendError(res, 'Email and password are required', 400);
 
   const user = await User.findOne({ email: email.toLowerCase() }).select('+password');
   if (!user) return sendError(res, 'Invalid email or password', 401);
@@ -84,15 +79,6 @@ export const login = asyncHandler(async (req, res) => {
   if (!isMatch) return sendError(res, 'Invalid email or password', 401);
 
   if (!user.isActive) return sendError(res, 'Your account has been deactivated. Contact support.', 403);
-
-  // Email verification check
-  if (!user.isEmailVerified) {
-    return sendError(
-      res,
-      'Please verify your email address before logging in. Check your inbox or request a new verification email.',
-      403
-    );
-  }
 
   user.lastLogin = new Date();
   await user.save({ validateBeforeSave: false });
@@ -103,14 +89,14 @@ export const login = asyncHandler(async (req, res) => {
   return sendSuccess(res, { user, token }, 'Login successful');
 });
 
-// ─── Logout ───────────────────────────────────────────────────────────────────
+// ─── Logout ────────────────────────────────────────────────────────────────
 
 export const logout = asyncHandler(async (req, res) => {
   clearTokenCookie(res);
   return sendSuccess(res, null, 'Logged out successfully');
 });
 
-// ─── Get current user ─────────────────────────────────────────────────────────
+// ─── Get current user ──────────────────────────────────────────────────────
 
 export const getMe = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user.id);
@@ -118,168 +104,129 @@ export const getMe = asyncHandler(async (req, res) => {
   return sendSuccess(res, { user }, 'User fetched successfully');
 });
 
-// ─── Update profile ───────────────────────────────────────────────────────────
+// ─── Update profile ────────────────────────────────────────────────────────
 
 export const updateProfile = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user.id);
   if (!user) return sendError(res, 'User not found', 404);
-
   const { name, phone } = req.body;
-
   if (name) user.name = name.trim();
   if (phone !== undefined) user.phone = phone;
-
-  // Handle Cloudinary image upload
   if (req.uploadedImage) {
-    // Delete old image
-    if (user.profileImagePublicId) {
-      await deleteFromCloudinary(user.profileImagePublicId);
-    }
+    if (user.profileImagePublicId) await deleteFromCloudinary(user.profileImagePublicId);
     user.profileImage = req.uploadedImage.url;
     user.profileImagePublicId = req.uploadedImage.public_id;
   }
-
   await user.save({ validateBeforeSave: false });
   return sendSuccess(res, { user }, 'Profile updated successfully');
 });
 
-// ─── Change password ──────────────────────────────────────────────────────────
+// ─── Change password ───────────────────────────────────────────────────────
 
 export const changePassword = asyncHandler(async (req, res) => {
   const { currentPassword, newPassword } = req.body;
-
-  if (!currentPassword || !newPassword) {
-    return sendError(res, 'Current and new passwords are required', 400);
-  }
-  if (newPassword.length < 6) {
-    return sendError(res, 'New password must be at least 6 characters', 400);
-  }
-
+  if (!currentPassword || !newPassword) return sendError(res, 'Current and new passwords are required', 400);
+  if (newPassword.length < 6) return sendError(res, 'New password must be at least 6 characters', 400);
   const user = await User.findById(req.user.id).select('+password');
   if (!user) return sendError(res, 'User not found', 404);
-
   const isMatch = await user.comparePassword(currentPassword);
   if (!isMatch) return sendError(res, 'Current password is incorrect', 400);
-
   user.password = newPassword;
   await user.save();
-
   return sendSuccess(res, null, 'Password changed successfully');
 });
 
-// ─── Verify Email ─────────────────────────────────────────────────────────────
+// ─── Verify Email ──────────────────────────────────────────────────────────
 
 export const verifyEmail = asyncHandler(async (req, res) => {
   const { token } = req.params;
   const hashed = crypto.createHash('sha256').update(token).digest('hex');
-
   const user = await User.findOne({
     emailVerificationToken: hashed,
     emailVerificationExpires: { $gt: Date.now() },
   }).select('+emailVerificationToken +emailVerificationExpires');
 
-  if (!user) {
-    return sendError(res, 'Invalid or expired verification link. Please request a new one.', 400);
-  }
+  if (!user) return sendError(res, 'Invalid or expired verification link. Please request a new one.', 400);
 
   user.isEmailVerified = true;
   user.emailVerificationToken = undefined;
   user.emailVerificationExpires = undefined;
   await user.save({ validateBeforeSave: false });
 
-  // Send welcome email
   emailService.sendWelcome(user.email, user.name);
-
-  return sendSuccess(res, { user }, 'Email verified successfully. You can now log in.');
+  return sendSuccess(res, { user }, 'Email verified successfully. You can now use all features.');
 });
 
-// ─── Resend Verification Email ────────────────────────────────────────────────
+// ─── Resend Verification Email ─────────────────────────────────────────────
 
 export const resendVerificationEmail = asyncHandler(async (req, res) => {
   const { email } = req.body;
   if (!email) return sendError(res, 'Email is required', 400);
 
-  const user = await User.findOne({ email: email.toLowerCase() }).select(
-    '+emailVerificationToken +emailVerificationExpires'
-  );
+  const user = await User.findOne({ email: email.toLowerCase() })
+    .select('+emailVerificationToken +emailVerificationExpires');
+
   if (!user) return sendError(res, 'No account found with that email', 404);
   if (user.isEmailVerified) return sendError(res, 'This email is already verified', 400);
 
+  // Cooldown: prevent resend if last token was created less than 60 seconds ago
+  if (user.emailVerificationExpires) {
+    const tokenAge = 24 * 60 * 60 * 1000 - (user.emailVerificationExpires - Date.now());
+    if (tokenAge < 60 * 1000) {
+      return sendError(res, 'Please wait 60 seconds before requesting another verification email.', 429);
+    }
+  }
+
   const token = user.createEmailVerificationToken();
   await user.save({ validateBeforeSave: false });
-
   emailService.sendVerificationEmail(user.email, user.name, token);
-
   return sendSuccess(res, null, 'Verification email sent. Please check your inbox.');
 });
 
-// ─── Forgot Password ──────────────────────────────────────────────────────────
+// ─── Forgot Password ───────────────────────────────────────────────────────
 
 export const forgotPassword = asyncHandler(async (req, res) => {
   const { email } = req.body;
   if (!email) return sendError(res, 'Email is required', 400);
-
   const user = await User.findOne({ email: email.toLowerCase() });
-  // Always return success to prevent email enumeration
-  if (!user) {
-    return sendSuccess(res, null, 'If that email exists, a reset link has been sent.');
-  }
-
+  if (!user) return sendSuccess(res, null, 'If that email exists, a reset link has been sent.');
   const token = user.createPasswordResetToken();
   await user.save({ validateBeforeSave: false });
-
   emailService.sendPasswordReset(user.email, user.name, token);
-
   return sendSuccess(res, null, 'Password reset email sent. Please check your inbox.');
 });
 
-// ─── Reset Password ───────────────────────────────────────────────────────────
+// ─── Reset Password ────────────────────────────────────────────────────────
 
 export const resetPassword = asyncHandler(async (req, res) => {
   const { token } = req.params;
   const { password } = req.body;
-
-  if (!password || password.length < 6) {
-    return sendError(res, 'Password must be at least 6 characters', 400);
-  }
-
+  if (!password || password.length < 6) return sendError(res, 'Password must be at least 6 characters', 400);
   const hashed = crypto.createHash('sha256').update(token).digest('hex');
-
   const user = await User.findOne({
     passwordResetToken: hashed,
     passwordResetExpires: { $gt: Date.now() },
   }).select('+passwordResetToken +passwordResetExpires');
-
-  if (!user) {
-    return sendError(res, 'Invalid or expired reset link. Please request a new one.', 400);
-  }
-
+  if (!user) return sendError(res, 'Invalid or expired reset link. Please request a new one.', 400);
   user.password = password;
   user.passwordResetToken = undefined;
   user.passwordResetExpires = undefined;
   await user.save();
-
   return sendSuccess(res, null, 'Password reset successful. You can now log in.');
 });
 
-// ─── Delete account ───────────────────────────────────────────────────────────
+// ─── Delete account ────────────────────────────────────────────────────────
 
 export const deleteAccount = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user.id).select('+password');
   if (!user) return sendError(res, 'User not found', 404);
-
   const { password } = req.body;
   if (password) {
     const isMatch = await user.comparePassword(password);
     if (!isMatch) return sendError(res, 'Incorrect password', 400);
   }
-
-  if (user.profileImagePublicId) {
-    await deleteFromCloudinary(user.profileImagePublicId);
-  }
-
+  if (user.profileImagePublicId) await deleteFromCloudinary(user.profileImagePublicId);
   await User.findByIdAndDelete(req.user.id);
   clearTokenCookie(res);
-
   return sendSuccess(res, null, 'Account deleted successfully');
 });

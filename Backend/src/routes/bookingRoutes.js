@@ -1,21 +1,15 @@
 import express from 'express';
 import {
-  createBooking,
-  getAllBookings,
-  getBooking,
-  updateBookingStatus,
-  deleteBooking,
-  cancelBooking,
-  getMyBookings,
-  getBookingStats,
+  createBooking, getAllBookings, getBooking, updateBookingStatus,
+  deleteBooking, cancelBooking, getMyBookings, getBookingStats,
 } from '../controllers/bookingController.js';
-import { protect, optionalAuth } from '../middleware/auth.js';
+import { protect, optionalAuth, requireVerifiedEmail } from '../middleware/auth.js';
 import { adminOnly } from '../middleware/admin.js';
 
 const router = express.Router();
 
-// Public route for creating booking (can be made protected if needed)
-router.post('/', optionalAuth, createBooking);
+// Creating a booking requires auth + verified email
+router.post('/', protect, requireVerifiedEmail, createBooking);
 
 // User routes
 router.get('/my', protect, getMyBookings);
