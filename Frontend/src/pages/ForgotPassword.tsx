@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Mountain, Mail, ArrowLeft, Send, CheckCircle } from 'lucide-react';
+import { Mountain, Mail, ArrowLeft, Send, CircleCheck as CheckCircle } from 'lucide-react';
 import authService from '../services/authService';
 
 export default function ForgotPassword() {

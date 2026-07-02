@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Mountain, CheckCircle, XCircle, Loader } from 'lucide-react';
+import { Mountain, CircleCheck as CheckCircle, Circle as XCircle, Loader } from 'lucide-react';
 import authService from '../services/authService';
 
 export default function VerifyEmail() {

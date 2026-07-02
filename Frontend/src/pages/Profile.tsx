@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { User, Mail, Phone, Lock, Eye, EyeOff, Save, ShieldCheck, RefreshCw, AlertTriangle } from 'lucide-react';
+import { User, Mail, Phone, Lock, Eye, EyeOff, Save, ShieldCheck, RefreshCw, TriangleAlert as AlertTriangle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import ImageUpload from '../components/ui/ImageUpload';

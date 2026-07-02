@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Mountain, Lock, Eye, EyeOff, CheckCircle } from 'lucide-react';
+import { Mountain, Lock, Eye, EyeOff, CircleCheck as CheckCircle } from 'lucide-react';
 import authService from '../services/authService';
 
 export default function ResetPassword() {
