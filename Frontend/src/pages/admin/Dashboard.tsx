@@ -4,7 +4,7 @@ import {
   CalendarCheck, IndianRupee, Map, Users, TrendingUp, ArrowUpRight, ArrowDownRight, Clock, ChevronRight,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { bookingService } from '../../services/bookingService';
+import  bookingService  from '../../services/bookingService';
 import { fallbackDashboardStats } from '../../data/adminData';
 
 const getStatusColor = (status: string) => {
