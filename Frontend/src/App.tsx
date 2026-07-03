@@ -17,6 +17,7 @@ import HotelDetail from './pages/HotelDetail';
 import Vehicles from './pages/Vehicles';
 import VehicleDetail from './pages/VehicleDetail';
 import Booking from './pages/Booking';
+import BookingConfirmation from './pages/BookingConfirmation';
 import TripPlanner from './pages/TripPlanner';
 import Profile from './pages/Profile';
 import MyBookings from './pages/MyBookings';
@@ -67,6 +68,7 @@ export default function App() {
                     <Route path="vehicles" element={<Vehicles />} />
                     <Route path="vehicles/:id" element={<VehicleDetail />} />
                     <Route path="booking" element={<Booking />} />
+                    <Route path="booking/confirmation" element={<BookingConfirmation />} />
                     <Route path="trip-planner" element={<TripPlanner />} />
                     <Route path="about" element={<About />} />
                     <Route path="contact" element={<Contact />} />

@@ -5,7 +5,6 @@ import {
   Calendar, Users, MapPin, Phone, Mail,
   CircleCheck as CheckCircle, User, ArrowLeft, Car, Package, Loader,
 } from 'lucide-react';
-import Button from '../components/ui/Button';
 import EmailVerificationModal from '../components/ui/EmailVerificationModal';
 import { usePackages } from '../hooks/usePackages';
 import { useVehicles } from '../hooks/useVehicles';
@@ -39,7 +38,6 @@ export default function Booking() {
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [bookingId, setBookingId] = useState<string | null>(null);
   const [showVerifyModal, setShowVerifyModal] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -115,9 +113,28 @@ export default function Booking() {
         specialRequests: formData.specialRequests,
         totalAmount,
       });
-      const id = response?.booking?._id || response?.booking?.id || response?._id;
-      setBookingId(id);
-      setStep(4);
+      const booking = response?.booking || response;
+      const id = booking?._id || booking?.id;
+      navigate('/booking/confirmation', {
+        replace: true,
+        state: {
+          booking: {
+            bookingId: id || 'PENDING',
+            packageName: selectedPackage?.name,
+            vehicleName: selectedVehicle?.vehicleName,
+            destination: selectedPackage?.destination,
+            travelDate: formData.travelDate,
+            travelers: formData.travelers,
+            totalAmount,
+            paymentStatus: booking?.paymentStatus || 'Pending',
+            bookingDate: booking?.createdAt || new Date().toISOString(),
+            customerName: formData.customerName,
+            customerEmail: formData.customerEmail,
+            customerPhone: formData.customerPhone,
+            type: bookingType,
+          },
+        },
+      });
     } catch (err: any) {
       // EMAIL_NOT_VERIFIED → show modal instead of error text
       if (err?.response?.data?.code === 'EMAIL_NOT_VERIFIED') {
@@ -141,44 +158,6 @@ export default function Booking() {
   const minDate = new Date().toISOString().split('T')[0];
 
   if (!isAuthenticated) return null;
-
-  // ── Step 4: Confirmation ──
-  if (step === 4) {
-    return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center p-4">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 max-w-md w-full text-center border border-gray-200 dark:border-gray-700"
-        >
-          <div className="w-16 h-16 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mx-auto mb-5">
-            <CheckCircle className="w-9 h-9 text-green-500" />
-          </div>
-          <h2 className="text-2xl font-display font-bold text-gray-900 dark:text-white mb-2">Booking Confirmed!</h2>
-          <p className="text-gray-500 dark:text-gray-400 mb-2">
-            Your booking has been submitted successfully.
-          </p>
-          {bookingId && (
-            <p className="text-sm font-mono text-primary-500 mb-6">
-              #{String(bookingId).slice(-8).toUpperCase()}
-            </p>
-          )}
-          <p className="text-sm text-gray-400 mb-6">
-            A confirmation email has been sent to{' '}
-            <span className="font-medium text-gray-600 dark:text-gray-300">{formData.customerEmail}</span>.
-          </p>
-          <div className="flex gap-3">
-            <Link to="/bookings/my" className="flex-1">
-              <Button variant="primary" className="w-full">View My Bookings</Button>
-            </Link>
-            <Link to="/packages" className="flex-1">
-              <Button variant="outline" className="w-full">More Packages</Button>
-            </Link>
-          </div>
-        </motion.div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
