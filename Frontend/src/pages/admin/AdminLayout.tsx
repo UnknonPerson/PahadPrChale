@@ -60,7 +60,7 @@ export default function AdminLayout() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
       {/* Desktop Sidebar */}
       <aside
         className={`fixed left-0 top-0 z-40 h-screen transition-all duration-300 hidden lg:block ${

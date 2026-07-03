@@ -12,11 +12,18 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 const STORAGE_KEY = 'pahadperchale-theme';
 
+/**
+ * Read the theme that the blocking inline script already applied to <html>.
+ * This prevents a flicker between the pre-React paint and React hydration.
+ */
 function getInitialTheme(): Theme {
   if (typeof window === 'undefined') return 'light';
+  // 1. Trust what the blocking script set on <html> first
+  if (document.documentElement.classList.contains('dark')) return 'dark';
+  // 2. Fall back to localStorage
   const saved = localStorage.getItem(STORAGE_KEY) as Theme | null;
   if (saved === 'light' || saved === 'dark') return saved;
-  // System preference
+  // 3. System preference
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 }
 

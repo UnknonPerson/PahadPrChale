@@ -13,7 +13,7 @@ const statusColors: Record<string, string> = {
 };
 
 export default function MyCustomTours() {
-  const { requests, loading, error } = useMyCustomTours();
+  const { tours: requests, loading, error } = useMyCustomTours();
 
   const formatDate = (date: string) => {
     return new Date(date).toLocaleDateString('en-IN', {
@@ -26,7 +26,7 @@ export default function MyCustomTours() {
   if (loading) return <PageLoader />;
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between mb-8">
           <div>

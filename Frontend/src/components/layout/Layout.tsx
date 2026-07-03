@@ -4,9 +4,10 @@ import Footer from './Footer';
 
 export default function Layout() {
   return (
-    <div className="min-h-screen bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 transition-colors duration-200">
+    <div className="min-h-screen flex flex-col bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 transition-colors duration-200">
       <Navbar />
-      <main className="min-h-[calc(100vh-68px)]">
+      {/* Navbar renders its own h-16 lg:h-[68px] spacer, so main starts right below */}
+      <main className="flex-1">
         <Outlet />
       </main>
       <Footer />

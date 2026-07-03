@@ -1,11 +1,11 @@
 import { motion } from 'framer-motion';
-import { Home, ArrowLeft, Compass } from 'lucide-react';
+import { Hop as Home, ArrowLeft, Compass } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import Button from '../components/ui/Button';
 
 export default function NotFound() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950 px-4">
       <div className="text-center">
         <motion.div
           initial={{ opacity: 0, scale: 0.5 }}

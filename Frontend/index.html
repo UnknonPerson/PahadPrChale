@@ -13,6 +13,25 @@
     <meta name="twitter:title" content="PahadPerChale - Your Personalized North East Travel Planner" />
     <meta name="twitter:description" content="Plan your perfect Northeast India trip with PahadPerChale. Personalized travel experiences in Darjeeling, Sikkim, Meghalaya, and beyond." />
     <meta name="twitter:image" content="https://images.pexels.com/photos/2161467/pexels-photo-2161467.jpeg?auto=compress&cs=tinysrgb&w=1200" />
+
+    <!--
+      Theme-blocking script: runs synchronously before any paint to apply the
+      correct dark/light class to <html> instantly, preventing flash of wrong theme.
+    -->
+    <script>
+      (function () {
+        try {
+          var saved = localStorage.getItem('pahadperchale-theme');
+          var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          var theme = saved === 'dark' || saved === 'light' ? saved : (prefersDark ? 'dark' : 'light');
+          if (theme === 'dark') {
+            document.documentElement.classList.add('dark');
+          } else {
+            document.documentElement.classList.remove('dark');
+          }
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

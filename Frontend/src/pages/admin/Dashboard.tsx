@@ -8,6 +8,8 @@ import bookingService from '../../services/bookingService';
 import api from '../../services/api';
 import { fallbackDashboardStats } from '../../data/adminData';
 
+const ZERO_STATS = { totalBookings: 0, revenue: 0, activeTours: 0, registeredUsers: 0, monthlyRevenue: [], recentActivity: [] };
+
 const getStatusColor = (status: string) => {
   switch (status) {
     case 'confirmed': return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
@@ -19,7 +21,7 @@ const getStatusColor = (status: string) => {
 };
 
 export default function Dashboard() {
-  const [stats, setStats] = useState(fallbackDashboardStats);
+  const [stats, setStats] = useState(ZERO_STATS);
   const [recentBookings, setRecentBookings] = useState<any[]>([]);
   const [pendingCount, setPendingCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
