@@ -1,11 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import {
-  CheckCircle, Calendar, Users, MapPin, CreditCard,
-  Clock, Phone, Mail, Package, ArrowRight, Home,
-  MessageSquare, Download, Printer,
-} from 'lucide-react';
+import { CircleCheck as CheckCircle, Calendar, Users, MapPin, CreditCard, Clock, Phone, Mail, Package, ArrowRight, Hop as Home, MessageSquare, Download, Printer } from 'lucide-react';
 
 interface BookingDetails {
   bookingId: string;

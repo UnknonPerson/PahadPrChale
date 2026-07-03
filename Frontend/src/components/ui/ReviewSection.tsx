@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Star, MessageSquare, Send, Trash2, Loader, Lock, ChevronDown, CheckCircle, AlertCircle } from 'lucide-react';
+import { Star, MessageSquare, Send, Trash2, Loader, Lock, ChevronDown, CircleCheck as CheckCircle, CircleAlert as AlertCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { usePackageReviews, useReviewActions } from '../../hooks/useReviews';
 import { useAuth } from '../../context/AuthContext';
