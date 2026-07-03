@@ -20,13 +20,12 @@ const navLinks = [
 ];
 
 const userMenuItems = [
-  { name: 'My Profile', path: '/profile', icon: User },
-  { name: 'My Bookings', path: '/bookings/my', icon: Calendar },
-  { name: 'My Custom Tours', path: '/my-custom-tours', icon: Map },
-  { name: 'My Messages', path: '/my-messages', icon: MessageSquare },
-  { name: 'Wishlist', path: '/wishlist', icon: Heart },
-  { name: 'Notifications', path: '/settings', icon: Bell },
-  { name: 'Settings', path: '/settings', icon: Settings },
+  { name: 'My Profile',      path: '/profile',           icon: User },
+  { name: 'My Bookings',     path: '/bookings/my',       icon: Calendar },
+  { name: 'My Custom Tours', path: '/my-custom-tours',   icon: Map },
+  { name: 'My Messages',     path: '/my-messages',       icon: MessageSquare },
+  { name: 'Wishlist',        path: '/wishlist',          icon: Heart },
+  { name: 'Settings',        path: '/settings',          icon: Settings },
 ];
 
 export default function Navbar() {
@@ -75,7 +74,7 @@ export default function Navbar() {
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
           isTransparent
             ? 'bg-transparent'
-            : 'bg-white/95 dark:bg-gray-950/95 backdrop-blur-xl border-b border-gray-200/80 dark:border-gray-800/50 shadow-sm'
+            : 'bg-[#F5F7F8] dark:bg-gray-950 backdrop-blur-xl border-b border-gray-200 dark:border-gray-800/60 shadow-sm'
         }`}
       >
         <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

@@ -1,175 +1,355 @@
-import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { Search, ListFilter as Filter, Eye, Check, X, Trash2, CalendarCheck, Loader, RefreshCw } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Search, ListFilter as Filter, Eye, Check, X, Trash2, CalendarCheck, Loader, RefreshCw, MoveVertical as MoreVertical, CircleCheck as CheckCircle, Circle as XCircle } from 'lucide-react';
 import { useAllBookings, useBookingActions } from '../../hooks/useBookings';
 import ExportButton from '../../components/ui/ExportButton';
-import type { Booking } from '../../data/adminData';
+import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import { useToast } from '../../context/ToastContext';
 
-const statusFilters = ['All', 'pending', 'confirmed', 'completed', 'cancelled'];
+const STATUS_FILTERS = ['All', 'pending', 'confirmed', 'completed', 'cancelled'];
+
+const STATUS_COLOR: Record<string, string> = {
+  confirmed: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
+  pending:   'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
+  completed: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+  cancelled: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+  rejected:  'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+};
+
+interface BookingRow {
+  _id?: string;
+  id?: string;
+  bookingId?: string;
+  type?: string;
+  customerName?: string;
+  customerEmail?: string;
+  customerPhone?: string;
+  travelers?: number;
+  travelDate?: string;
+  totalAmount?: number;
+  status: string;
+  specialRequests?: string;
+  packageName?: string;
+  vehicleName?: string;
+  package?: { name?: string };
+  vehicle?: { vehicleName?: string; name?: string };
+}
+
+// Rows-only optimistic update: mutate a single booking in the list without refetch
+function applyUpdate(list: BookingRow[], mongoId: string, patch: Partial<BookingRow>): BookingRow[] {
+  return list.map((b) => (getMongoId(b) === mongoId ? { ...b, ...patch } : b));
+}
+function getMongoId(b: BookingRow) { return b._id || b.id || ''; }
+function getDisplayId(b: BookingRow) { return b.bookingId || b._id || b.id || ''; }
+function getBookingName(b: BookingRow) {
+  return b.type === 'vehicle'
+    ? b.vehicleName || b.vehicle?.vehicleName || b.vehicle?.name || 'Vehicle Booking'
+    : b.packageName || b.package?.name || 'Package Booking';
+}
+
+// ─── Row action menu ───────────────────────────────────────────────────────
+
+function ActionMenu({
+  booking,
+  onView,
+  onConfirm,
+  onCancel,
+  onComplete,
+  onDelete,
+  busy,
+}: {
+  booking: BookingRow;
+  onView: () => void;
+  onConfirm: () => void;
+  onCancel: () => void;
+  onComplete: () => void;
+  onDelete: () => void;
+  busy: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  return (
+    <div className="relative" ref={ref}>
+      <div className="flex items-center gap-1">
+        {/* Eye always visible */}
+        <button
+          onClick={onView}
+          className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-primary-500 transition-colors"
+          title="View details"
+        >
+          <Eye className="w-4 h-4" />
+        </button>
+
+        {/* Quick confirm for pending */}
+        {booking.status === 'pending' && (
+          <button
+            onClick={onConfirm}
+            disabled={busy}
+            className="p-1.5 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20 text-gray-400 hover:text-green-600 transition-colors disabled:opacity-40"
+            title="Confirm booking"
+          >
+            {busy ? <Loader className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+          </button>
+        )}
+
+        {/* More menu */}
+        <button
+          onClick={() => setOpen((v) => !v)}
+          className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-gray-600 transition-colors"
+          title="More actions"
+        >
+          <MoreVertical className="w-4 h-4" />
+        </button>
+      </div>
+
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: -4 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: -4 }}
+            transition={{ duration: 0.12 }}
+            className="absolute right-0 top-full mt-1 w-44 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg z-20 overflow-hidden"
+          >
+            {booking.status === 'pending' && (
+              <>
+                <button
+                  onClick={() => { setOpen(false); onConfirm(); }}
+                  className="flex items-center gap-2 w-full px-3 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-green-50 dark:hover:bg-green-900/10 hover:text-green-600 transition-colors"
+                >
+                  <CheckCircle className="w-4 h-4" /> Confirm
+                </button>
+                <button
+                  onClick={() => { setOpen(false); onCancel(); }}
+                  className="flex items-center gap-2 w-full px-3 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-orange-50 dark:hover:bg-orange-900/10 hover:text-orange-500 transition-colors"
+                >
+                  <XCircle className="w-4 h-4" /> Cancel
+                </button>
+              </>
+            )}
+            {booking.status === 'confirmed' && (
+              <>
+                <button
+                  onClick={() => { setOpen(false); onComplete(); }}
+                  className="flex items-center gap-2 w-full px-3 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-blue-900/10 hover:text-blue-500 transition-colors"
+                >
+                  <CheckCircle className="w-4 h-4" /> Mark Completed
+                </button>
+                <button
+                  onClick={() => { setOpen(false); onCancel(); }}
+                  className="flex items-center gap-2 w-full px-3 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-orange-50 dark:hover:bg-orange-900/10 hover:text-orange-500 transition-colors"
+                >
+                  <XCircle className="w-4 h-4" /> Cancel
+                </button>
+              </>
+            )}
+            <div className="border-t border-gray-100 dark:border-gray-800">
+              <button
+                onClick={() => { setOpen(false); onDelete(); }}
+                className="flex items-center gap-2 w-full px-3 py-2.5 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors"
+              >
+                <Trash2 className="w-4 h-4" /> Delete
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+// ─── Main Component ────────────────────────────────────────────────────────
 
 export default function Bookings() {
-  const { bookings: apiBookings, loading, error, refetch } = useAllBookings();
+  const { bookings: rawBookings, loading, error, refetch } = useAllBookings();
   const { updateStatus, cancel, remove } = useBookingActions();
   const { success, error: toastError } = useToast();
 
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('All');
-  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
-  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  // Local copy for optimistic updates — avoids full refetch on every action
+  const [bookings, setBookings] = useState<BookingRow[]>([]);
+  useEffect(() => { setBookings(rawBookings as BookingRow[]); }, [rawBookings]);
 
-  const filteredBookings = apiBookings.filter((booking: Booking) => {
-    const bookingId = booking.bookingId || booking._id || booking.id || '';
-    const bookingName = booking.type === 'vehicle'
-      ? (booking.vehicleName || booking.vehicle?.vehicleName || booking.vehicle?.name || '')
-      : (booking.packageName || booking.package?.name || '');
-    const matchesSearch =
-      booking.customerName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      bookingId.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      bookingName.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = statusFilter === 'All' || booking.status === statusFilter;
-    return matchesSearch && matchesStatus;
+  const [searchQuery, setSearchQuery]     = useState('');
+  const [statusFilter, setStatusFilter]   = useState('All');
+  const [selected, setSelected]           = useState<BookingRow | null>(null);
+  const [actionBusy, setActionBusy]       = useState<string | null>(null);
+
+  // Confirmation dialogs
+  const [confirmDialog, setConfirmDialog] = useState<{
+    open: boolean;
+    title: string;
+    message: string;
+    variant: 'danger' | 'warning' | 'info';
+    onConfirm: () => void;
+  }>({ open: false, title: '', message: '', variant: 'danger', onConfirm: () => {} });
+
+  const filtered = bookings.filter((b) => {
+    const idStr  = getDisplayId(b).toLowerCase();
+    const name   = getBookingName(b).toLowerCase();
+    const q      = searchQuery.toLowerCase();
+    const matchQ = !q || b.customerName?.toLowerCase().includes(q) || idStr.includes(q) || name.includes(q);
+    const matchS = statusFilter === 'All' || b.status === statusFilter;
+    return matchQ && matchS;
   });
 
-  const pendingCount = apiBookings.filter((b: Booking) => b.status === 'pending').length;
+  // ── Actions ────────────────────────────────────────────────────────────
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'confirmed': return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
-      case 'pending': return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400';
-      case 'completed': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400';
-      case 'cancelled': return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
-      default: return 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300';
-    }
-  };
-
-  const handleAccept = async (bookingId: string) => {
-    setActionLoading(bookingId + '-accept');
+  const runAction = async (
+    mongoId: string,
+    key: string,
+    action: () => Promise<any>,
+    successMsg: string,
+    patch: Partial<BookingRow>
+  ) => {
+    setActionBusy(key);
     try {
-      await updateStatus(bookingId, 'confirmed');
-      success('Booking confirmed successfully');
-      await refetch();
-      if (selectedBooking && (selectedBooking.bookingId || selectedBooking._id || selectedBooking.id) === bookingId) {
-        setSelectedBooking({ ...selectedBooking, status: 'confirmed' });
+      await action();
+      // Optimistic update
+      setBookings((prev) => applyUpdate(prev, mongoId, patch));
+      if (selected && getMongoId(selected) === mongoId) {
+        setSelected((s) => s ? { ...s, ...patch } : s);
       }
-    } catch (err) {
-      toastError('Failed to confirm booking');
+      success(successMsg);
+    } catch (err: any) {
+      toastError(err?.response?.data?.message || 'Action failed');
+      refetch(); // re-sync on error
     } finally {
-      setActionLoading(null);
+      setActionBusy(null);
     }
   };
 
-  const handleCancel = async (bookingId: string) => {
-    setActionLoading(bookingId + '-cancel');
-    try {
-      await cancel(bookingId);
-      success('Booking cancelled');
-      await refetch();
-      if (selectedBooking && (selectedBooking.bookingId || selectedBooking._id || selectedBooking.id) === bookingId) {
-        setSelectedBooking({ ...selectedBooking, status: 'cancelled' });
-      }
-    } catch (err) {
-      toastError('Failed to cancel booking');
-    } finally {
-      setActionLoading(null);
-    }
+  const askConfirm = (
+    title: string,
+    message: string,
+    variant: 'danger' | 'warning' | 'info',
+    onConfirm: () => void
+  ) => setConfirmDialog({ open: true, title, message, variant, onConfirm });
+
+  const handleConfirmBooking = (b: BookingRow) => {
+    const mid = getMongoId(b);
+    runAction(mid, mid + '-confirm', () => updateStatus(mid, 'confirmed'), 'Booking confirmed', { status: 'confirmed' });
   };
 
-  const handleDelete = async (bookingId: string) => {
-    if (!confirm('Delete this booking permanently?')) return;
-    setActionLoading(bookingId + '-delete');
-    try {
-      await remove(bookingId);
-      success('Booking deleted');
-      setSelectedBooking(null);
-      await refetch();
-    } catch (err) {
-      toastError('Failed to delete booking');
-    } finally {
-      setActionLoading(null);
-    }
+  const handleCancelBooking = (b: BookingRow) => {
+    askConfirm(
+      'Cancel Booking',
+      `Cancel booking for ${b.customerName}? This will notify the customer.`,
+      'warning',
+      () => runAction(getMongoId(b), getMongoId(b) + '-cancel', () => cancel(getMongoId(b)), 'Booking cancelled', { status: 'cancelled' })
+    );
   };
+
+  const handleCompleteBooking = (b: BookingRow) => {
+    const mid = getMongoId(b);
+    runAction(mid, mid + '-complete', () => updateStatus(mid, 'completed'), 'Booking marked completed', { status: 'completed' });
+  };
+
+  const handleDeleteBooking = (b: BookingRow) => {
+    askConfirm(
+      'Delete Booking',
+      `Permanently delete this booking? This cannot be undone.`,
+      'danger',
+      () => runAction(
+        getMongoId(b),
+        getMongoId(b) + '-delete',
+        () => remove(getMongoId(b)),
+        'Booking deleted',
+        { status: 'cancelled' } // will be removed via refetch below
+      ).then(() => {
+        setBookings((prev) => prev.filter((x) => getMongoId(x) !== getMongoId(b)));
+        if (selected && getMongoId(selected) === getMongoId(b)) setSelected(null);
+      })
+    );
+  };
+
+  const pendingCount = bookings.filter((b) => b.status === 'pending').length;
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-display font-bold text-gray-900 dark:text-white">
-            Bookings
-          </h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-1">
+          <h1 className="text-2xl font-display font-bold text-gray-900 dark:text-white">Bookings</h1>
+          <div className="flex items-center gap-2 mt-1">
             {pendingCount > 0 && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700 text-sm font-medium mr-2">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 text-xs font-medium">
                 {pendingCount} pending
               </span>
             )}
-            Manage and track all tour bookings
-          </p>
+            <span className="text-sm text-gray-500 dark:text-gray-400">
+              {bookings.length} total bookings
+            </span>
+          </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <button
             onClick={() => refetch()}
-            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 text-sm"
+            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 text-sm transition-colors"
           >
-            <RefreshCw className="w-4 h-4" />
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             Refresh
           </button>
-          <ExportButton type="bookings" data={apiBookings} />
+          <ExportButton type="bookings" data={bookings} />
         </div>
       </div>
 
-      {/* Stats */}
+      {/* Status summary cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {['pending', 'confirmed', 'completed', 'cancelled'].map((status) => (
+        {(['pending', 'confirmed', 'completed', 'cancelled'] as const).map((s) => (
           <button
-            key={status}
-            onClick={() => setStatusFilter(status === statusFilter ? 'All' : status)}
-            className={`glass-card p-4 text-left transition-all ${statusFilter === status ? 'ring-2 ring-primary-500' : ''}`}
+            key={s}
+            onClick={() => setStatusFilter(statusFilter === s ? 'All' : s)}
+            className={`glass-card p-4 text-left transition-all hover:shadow-md ${
+              statusFilter === s ? 'ring-2 ring-primary-500 shadow-md' : ''
+            }`}
           >
             <p className="text-2xl font-bold text-gray-900 dark:text-white">
-              {apiBookings.filter((b: Booking) => b.status === status).length}
+              {bookings.filter((b) => b.status === s).length}
             </p>
-            <p className="text-sm capitalize text-gray-500">{status}</p>
+            <p className="text-sm capitalize text-gray-500 dark:text-gray-400 mt-0.5">{s}</p>
           </button>
         ))}
       </div>
 
-      {loading && (
-        <div className="flex items-center justify-center py-8">
-          <Loader className="w-6 h-6 animate-spin text-primary-500 mr-2" />
-          <p className="text-gray-500">Loading bookings...</p>
+      {/* Error */}
+      {error && !loading && (
+        <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl text-red-700 dark:text-red-400 text-sm">
+          {error}
         </div>
       )}
 
-      {error && (
-        <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl">
-          <p className="text-red-700 dark:text-red-400">Error: {error}</p>
-        </div>
-      )}
-
-      {/* Search and Filter */}
+      {/* Search + Filter */}
       <div className="glass-card p-4">
-        <div className="flex flex-col sm:flex-row gap-4">
+        <div className="flex flex-col sm:flex-row gap-3">
           <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
             <input
               type="text"
-              placeholder="Search by ID, customer, or package..."
-              className="input-field pl-10"
+              placeholder="Search by ID, customer or package…"
+              className="input-field pl-9"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
           <div className="flex items-center gap-2">
-            <Filter className="w-5 h-5 text-gray-400" />
+            <Filter className="w-4 h-4 text-gray-400 flex-shrink-0" />
             <select
-              className="input-field"
+              className="input-field w-auto"
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
             >
-              {statusFilters.map((status) => (
-                <option key={status} value={status}>
-                  {status === 'All' ? 'All Status' : status.charAt(0).toUpperCase() + status.slice(1)}
+              {STATUS_FILTERS.map((s) => (
+                <option key={s} value={s}>
+                  {s === 'All' ? 'All Status' : s.charAt(0).toUpperCase() + s.slice(1)}
                 </option>
               ))}
             </select>
@@ -177,237 +357,207 @@ export default function Bookings() {
         </div>
       </div>
 
-      {/* Bookings Table */}
+      {/* Table */}
       <div className="glass-card overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
-                <th className="text-left py-4 px-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Booking ID</th>
-                <th className="text-left py-4 px-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
-                <th className="text-left py-4 px-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Package / Vehicle</th>
-                <th className="text-left py-4 px-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                <th className="text-left py-4 px-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                <th className="text-left py-4 px-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="text-left py-4 px-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-              {filteredBookings.map((booking: Booking, index: number) => {
-                const bookingIdDisplay = booking.bookingId || booking._id || booking.id || '';
-                const bookingRowKey = booking._id || booking.id || booking.bookingId || index;
-                const bookingName = booking.type === 'vehicle'
-                  ? (booking.vehicleName || booking.vehicle?.vehicleName || booking.vehicle?.name || 'Vehicle Booking')
-                  : (booking.packageName || booking.package?.name || 'Package Booking');
-                const travelDate = booking.travelDate || '';
-
-                return (
-                  <motion.tr
-                    key={String(bookingRowKey)}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: index * 0.03 }}
-                    className="hover:bg-gray-50 dark:hover:bg-gray-800/50"
-                  >
-                    <td className="py-4 px-4">
-                      <div className="flex items-center gap-2">
-                        <CalendarCheck className="w-4 h-4 text-primary-500" />
-                        <span className="font-mono text-sm font-medium text-gray-900 dark:text-white">
-                          {bookingIdDisplay.slice(-8).toUpperCase()}
+        {loading ? (
+          <div className="flex items-center justify-center py-12 gap-3 text-gray-500">
+            <Loader className="w-5 h-5 animate-spin text-primary-500" />
+            Loading bookings…
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+                  <th className="table-th">Booking ID</th>
+                  <th className="table-th">Customer</th>
+                  <th className="table-th">Package / Vehicle</th>
+                  <th className="table-th">Travel Date</th>
+                  <th className="table-th">Amount</th>
+                  <th className="table-th">Status</th>
+                  <th className="table-th">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                <AnimatePresence>
+                  {filtered.map((booking, idx) => (
+                    <motion.tr
+                      key={getMongoId(booking) || idx}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ delay: Math.min(idx * 0.02, 0.2) }}
+                      className="hover:bg-gray-50 dark:hover:bg-gray-800/40 transition-colors"
+                    >
+                      <td className="table-td">
+                        <div className="flex items-center gap-2">
+                          <CalendarCheck className="w-4 h-4 text-primary-500 flex-shrink-0" />
+                          <span className="font-mono font-medium text-gray-900 dark:text-white">
+                            #{getDisplayId(booking).slice(-8).toUpperCase()}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="table-td">
+                        <p className="font-medium text-gray-900 dark:text-white">{booking.customerName}</p>
+                        <p className="text-xs text-gray-400">{booking.customerEmail}</p>
+                      </td>
+                      <td className="table-td">
+                        <p className="text-gray-900 dark:text-white">{getBookingName(booking)}</p>
+                        <p className="text-xs text-gray-400 capitalize">{booking.type || 'package'}</p>
+                      </td>
+                      <td className="table-td text-gray-600 dark:text-gray-300">
+                        {booking.travelDate
+                          ? new Date(booking.travelDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+                          : '—'}
+                      </td>
+                      <td className="table-td font-semibold text-gray-900 dark:text-white">
+                        ₹{(booking.totalAmount || 0).toLocaleString('en-IN')}
+                      </td>
+                      <td className="table-td">
+                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${STATUS_COLOR[booking.status] ?? 'bg-gray-100 text-gray-600'}`}>
+                          {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
                         </span>
-                      </div>
-                    </td>
-                    <td className="py-4 px-4">
-                      <p className="font-medium text-gray-900 dark:text-white">{booking.customerName}</p>
-                      <p className="text-sm text-gray-500">{booking.customerEmail}</p>
-                    </td>
-                    <td className="py-4 px-4">
-                      <p className="text-gray-900 dark:text-white">{bookingName}</p>
-                      <p className="text-xs text-gray-400 capitalize">{booking.type || 'package'}</p>
-                    </td>
-                    <td className="py-4 px-4 text-gray-600 dark:text-gray-300 text-sm">
-                      {travelDate ? new Date(travelDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
-                    </td>
-                    <td className="py-4 px-4 font-semibold text-gray-900 dark:text-white">
-                      ₹{(booking.totalAmount || 0).toLocaleString('en-IN')}
-                    </td>
-                    <td className="py-4 px-4">
-                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${getStatusColor(booking.status)}`}>
-                        {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
-                      </span>
-                    </td>
-                    <td className="py-4 px-4">
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => setSelectedBooking(booking)}
-                          className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 hover:text-primary-500 transition-colors"
-                          title="View details"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
-                        {booking.status === 'pending' && (
-                          <>
-                            <button
-                              onClick={() => handleAccept(bookingIdDisplay)}
-                              disabled={actionLoading === bookingIdDisplay + '-accept'}
-                              className="p-2 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20 text-gray-500 hover:text-green-600 transition-colors disabled:opacity-50"
-                              title="Accept booking"
-                            >
-                              {actionLoading === bookingIdDisplay + '-accept'
-                                ? <Loader className="w-4 h-4 animate-spin" />
-                                : <Check className="w-4 h-4" />}
-                            </button>
-                            <button
-                              onClick={() => handleCancel(bookingIdDisplay)}
-                              disabled={actionLoading === bookingIdDisplay + '-cancel'}
-                              className="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-gray-500 hover:text-red-500 transition-colors disabled:opacity-50"
-                              title="Cancel booking"
-                            >
-                              {actionLoading === bookingIdDisplay + '-cancel'
-                                ? <Loader className="w-4 h-4 animate-spin" />
-                                : <X className="w-4 h-4" />}
-                            </button>
-                          </>
-                        )}
-                        <button
-                          onClick={() => handleDelete(bookingIdDisplay)}
-                          disabled={actionLoading === bookingIdDisplay + '-delete'}
-                          className="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-gray-500 hover:text-red-500 transition-colors disabled:opacity-50"
-                          title="Delete booking"
-                        >
-                          {actionLoading === bookingIdDisplay + '-delete'
-                            ? <Loader className="w-4 h-4 animate-spin" />
-                            : <Trash2 className="w-4 h-4" />}
-                        </button>
-                      </div>
-                    </td>
-                  </motion.tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-
-        {!loading && filteredBookings.length === 0 && (
-          <div className="py-12 text-center text-gray-500">
-            <CalendarCheck className="w-12 h-12 mx-auto mb-3 opacity-30" />
-            <p>No bookings found</p>
+                      </td>
+                      <td className="table-td">
+                        <ActionMenu
+                          booking={booking}
+                          busy={!!actionBusy?.startsWith(getMongoId(booking))}
+                          onView={() => setSelected(booking)}
+                          onConfirm={() => handleConfirmBooking(booking)}
+                          onCancel={() => handleCancelBooking(booking)}
+                          onComplete={() => handleCompleteBooking(booking)}
+                          onDelete={() => handleDeleteBooking(booking)}
+                        />
+                      </td>
+                    </motion.tr>
+                  ))}
+                </AnimatePresence>
+              </tbody>
+            </table>
+            {filtered.length === 0 && (
+              <div className="py-14 text-center text-gray-400">
+                <CalendarCheck className="w-10 h-10 mx-auto mb-3 opacity-25" />
+                <p>No bookings found</p>
+              </div>
+            )}
           </div>
         )}
       </div>
 
-      {/* Booking Detail Modal */}
-      {selectedBooking && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-lg shadow-xl"
-          >
-            <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Booking Details</h2>
-              <button onClick={() => setSelectedBooking(null)} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
-                <X className="w-5 h-5 text-gray-500" />
-              </button>
-            </div>
-
-            <div className="p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-gray-500">Booking ID</p>
-                  <p className="font-mono font-medium text-gray-900 dark:text-white">
-                    {selectedBooking.bookingId || selectedBooking._id || selectedBooking.id}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Status</p>
-                  <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${getStatusColor(selectedBooking.status)}`}>
-                    {selectedBooking.status.charAt(0).toUpperCase() + selectedBooking.status.slice(1)}
-                  </span>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Customer</p>
-                  <p className="font-medium text-gray-900 dark:text-white">{selectedBooking.customerName}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Email</p>
-                  <p className="text-gray-900 dark:text-white text-sm">{selectedBooking.customerEmail}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Phone</p>
-                  <p className="font-medium text-gray-900 dark:text-white">{selectedBooking.customerPhone}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Travelers</p>
-                  <p className="font-medium text-gray-900 dark:text-white">{selectedBooking.travelers}</p>
-                </div>
-                <div className="col-span-2">
-                  <p className="text-sm text-gray-500">Package / Vehicle</p>
-                  <p className="font-medium text-gray-900 dark:text-white">
-                    {selectedBooking.type === 'vehicle'
-                      ? (selectedBooking.vehicleName || selectedBooking.vehicle?.vehicleName || 'Vehicle')
-                      : (selectedBooking.packageName || selectedBooking.package?.name || 'Package')}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Travel Date</p>
-                  <p className="font-medium text-gray-900 dark:text-white">
-                    {selectedBooking.travelDate ? new Date(selectedBooking.travelDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : '-'}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Total Amount</p>
-                  <p className="font-bold text-lg text-secondary-500">
-                    ₹{(selectedBooking.totalAmount || 0).toLocaleString('en-IN')}
-                  </p>
-                </div>
-                {selectedBooking.specialRequests && (
-                  <div className="col-span-2">
-                    <p className="text-sm text-gray-500">Special Requests</p>
-                    <p className="text-gray-700 dark:text-gray-300 text-sm">{selectedBooking.specialRequests}</p>
-                  </div>
-                )}
+      {/* Detail modal */}
+      <AnimatePresence>
+        {selected && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.96 }}
+              className="bg-white dark:bg-gray-900 rounded-2xl w-full max-w-lg shadow-2xl border border-gray-200 dark:border-gray-800 overflow-hidden"
+            >
+              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-800">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Booking Details</h2>
+                <button
+                  onClick={() => setSelected(null)}
+                  className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
               </div>
-            </div>
 
-            <div className="p-6 border-t border-gray-200 dark:border-gray-700 flex flex-wrap gap-3">
-              {selectedBooking.status === 'pending' && (
-                <>
-                  <button
-                    onClick={() => handleAccept(selectedBooking.bookingId || selectedBooking._id || selectedBooking.id || '')}
-                    disabled={!!actionLoading}
-                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-green-500 text-white hover:bg-green-600 disabled:opacity-50 transition-colors"
-                  >
-                    {actionLoading?.includes('-accept') ? <Loader className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                    Confirm Booking
-                  </button>
-                  <button
-                    onClick={() => handleCancel(selectedBooking.bookingId || selectedBooking._id || selectedBooking.id || '')}
-                    disabled={!!actionLoading}
-                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-red-500 text-white hover:bg-red-600 disabled:opacity-50 transition-colors"
-                  >
-                    {actionLoading?.includes('-cancel') ? <Loader className="w-4 h-4 animate-spin" /> : <X className="w-4 h-4" />}
-                    Cancel
-                  </button>
-                </>
-              )}
-              <button
-                onClick={() => handleDelete(selectedBooking.bookingId || selectedBooking._id || selectedBooking.id || '')}
-                disabled={!!actionLoading}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-red-100 hover:text-red-500 dark:hover:bg-red-900/20 disabled:opacity-50 transition-colors"
-              >
-                <Trash2 className="w-4 h-4" /> Delete
-              </button>
-              <button
-                onClick={() => setSelectedBooking(null)}
-                className="flex-1 md:flex-none px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 transition-colors"
-              >
-                Close
-              </button>
-            </div>
-          </motion.div>
-        </div>
-      )}
+              <div className="p-6 grid grid-cols-2 gap-4 text-sm">
+                {[
+                  { label: 'Booking ID', value: getDisplayId(selected) },
+                  { label: 'Status', value: (
+                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${STATUS_COLOR[selected.status] ?? ''}`}>
+                      {selected.status.charAt(0).toUpperCase() + selected.status.slice(1)}
+                    </span>
+                  )},
+                  { label: 'Customer', value: selected.customerName },
+                  { label: 'Email', value: selected.customerEmail },
+                  { label: 'Phone', value: selected.customerPhone || '—' },
+                  { label: 'Travelers', value: selected.travelers },
+                  { label: 'Package / Vehicle', value: getBookingName(selected), full: true },
+                  { label: 'Travel Date', value: selected.travelDate ? new Date(selected.travelDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : '—' },
+                  { label: 'Total Amount', value: <span className="text-lg font-bold text-primary-500">₹{(selected.totalAmount || 0).toLocaleString('en-IN')}</span> },
+                  ...(selected.specialRequests ? [{ label: 'Special Requests', value: selected.specialRequests, full: true }] : []),
+                ].map((item, i) => (
+                  <div key={i} className={item.full ? 'col-span-2' : ''}>
+                    <p className="text-gray-400 text-xs mb-0.5">{item.label}</p>
+                    <div className="font-medium text-gray-900 dark:text-white">{item.value}</div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex flex-wrap gap-2 px-6 py-4 border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50">
+                {selected.status === 'pending' && (
+                  <>
+                    <button
+                      onClick={() => handleConfirmBooking(selected)}
+                      disabled={!!actionBusy}
+                      className="flex items-center gap-2 px-4 py-2 rounded-xl bg-green-500 text-white hover:bg-green-600 disabled:opacity-50 text-sm font-medium transition-colors"
+                    >
+                      <Check className="w-4 h-4" /> Confirm
+                    </button>
+                    <button
+                      onClick={() => handleCancelBooking(selected)}
+                      disabled={!!actionBusy}
+                      className="flex items-center gap-2 px-4 py-2 rounded-xl bg-orange-500 text-white hover:bg-orange-600 disabled:opacity-50 text-sm font-medium transition-colors"
+                    >
+                      <XCircle className="w-4 h-4" /> Cancel
+                    </button>
+                  </>
+                )}
+                {selected.status === 'confirmed' && (
+                  <>
+                    <button
+                      onClick={() => handleCompleteBooking(selected)}
+                      disabled={!!actionBusy}
+                      className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 text-sm font-medium transition-colors"
+                    >
+                      <CheckCircle className="w-4 h-4" /> Mark Completed
+                    </button>
+                    <button
+                      onClick={() => handleCancelBooking(selected)}
+                      disabled={!!actionBusy}
+                      className="flex items-center gap-2 px-4 py-2 rounded-xl bg-orange-500 text-white hover:bg-orange-600 disabled:opacity-50 text-sm font-medium transition-colors"
+                    >
+                      <XCircle className="w-4 h-4" /> Cancel
+                    </button>
+                  </>
+                )}
+                <button
+                  onClick={() => handleDeleteBooking(selected)}
+                  disabled={!!actionBusy}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl border-2 border-red-200 dark:border-red-800 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50 text-sm font-medium transition-colors"
+                >
+                  <Trash2 className="w-4 h-4" /> Delete
+                </button>
+                <button
+                  onClick={() => setSelected(null)}
+                  className="ml-auto px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 text-sm transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Confirm dialog */}
+      <ConfirmDialog
+        isOpen={confirmDialog.open}
+        onClose={() => setConfirmDialog((d) => ({ ...d, open: false }))}
+        onConfirm={() => {
+          setConfirmDialog((d) => ({ ...d, open: false }));
+          confirmDialog.onConfirm();
+        }}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        variant={confirmDialog.variant}
+        confirmText={confirmDialog.variant === 'danger' ? 'Delete' : 'Confirm'}
+        isLoading={!!actionBusy}
+      />
     </div>
   );
 }

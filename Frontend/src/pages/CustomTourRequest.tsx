@@ -1,16 +1,107 @@
-import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { Plus, MapPin, Calendar, Users, IndianRupee, Car, Hop as Home, UtensilsCrossed, Send, CircleAlert as AlertCircle, Check } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  Plus, MapPin, Calendar, Users, IndianRupee, Car,
+  UtensilsCrossed, Send, CircleAlert as AlertCircle,
+  Check, ChevronRight, ChevronLeft, X,
+} from 'lucide-react';
 import { useDestinations } from '../hooks/useDestinations';
 import { useCustomTourActions } from '../hooks/useCustomTours';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
-const activityOptions = [
-  'Trekking', 'River Rafting', 'Paragliding', 'Wildlife Safari', 'Monastery Visits',
-  'Tea Garden Tour', 'Cable Car Ride', 'Camping', 'Bird Watching', 'Photography Tours',
-  'Cultural Shows', 'Local Market Tours',
+const ACTIVITIES = [
+  'Trekking', 'River Rafting', 'Paragliding', 'Wildlife Safari',
+  'Monastery Visits', 'Tea Garden Tour', 'Cable Car Ride', 'Camping',
+  'Bird Watching', 'Photography Tours', 'Cultural Shows', 'Local Market Tours',
 ];
+
+// ─── Validation ────────────────────────────────────────────────────────────
+
+interface FormData {
+  destinations: string[];
+  customDestination: string;
+  startDate: string;
+  endDate: string;
+  adults: number;
+  children: number;
+  budget: string;
+  budgetType: string;
+  accommodationType: string;
+  transportation: string;
+  meals: string;
+  activities: string[];
+  pickupLocation: string;
+  specialRequests: string;
+  contactPhone: string;
+  contactEmail: string;
+}
+
+interface FormErrors {
+  destinations?: string;
+  startDate?: string;
+  endDate?: string;
+  adults?: string;
+  budget?: string;
+  contactPhone?: string;
+  contactEmail?: string;
+}
+
+function validateStep(step: number, data: FormData): FormErrors {
+  const errors: FormErrors = {};
+  if (step === 1) {
+    if (data.destinations.length === 0 && !data.customDestination.trim()) {
+      errors.destinations = 'Please select at least one destination or enter a custom one.';
+    }
+    if (!data.startDate) {
+      errors.startDate = 'Start date is required.';
+    }
+    if (!data.endDate) {
+      errors.endDate = 'End date is required.';
+    } else if (data.startDate && new Date(data.endDate) <= new Date(data.startDate)) {
+      errors.endDate = 'End date must be after start date.';
+    }
+  }
+  if (step === 2) {
+    if (!data.adults || data.adults < 1) {
+      errors.adults = 'At least 1 adult is required.';
+    }
+    if (!data.budget.trim()) {
+      errors.budget = 'Please enter your approximate budget.';
+    } else if (isNaN(Number(data.budget)) || Number(data.budget) <= 0) {
+      errors.budget = 'Budget must be a positive number.';
+    }
+  }
+  if (step === 4) {
+    if (!data.contactPhone.trim()) {
+      errors.contactPhone = 'Phone number is required.';
+    } else if (!/^[+\d\s\-()]{7,}$/.test(data.contactPhone.trim())) {
+      errors.contactPhone = 'Enter a valid phone number.';
+    }
+    if (!data.contactEmail.trim()) {
+      errors.contactEmail = 'Email is required.';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.contactEmail.trim())) {
+      errors.contactEmail = 'Enter a valid email address.';
+    }
+  }
+  return errors;
+}
+
+// ─── Field error component ──────────────────────────────────────────────────
+
+function FieldError({ msg }: { msg?: string }) {
+  if (!msg) return null;
+  return (
+    <motion.p
+      initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
+      className="flex items-center gap-1 text-xs text-red-500 mt-1"
+    >
+      <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />{msg}
+    </motion.p>
+  );
+}
+
+// ─── Main Component ─────────────────────────────────────────────────────────
 
 export default function CustomTourRequest() {
   const { destinations } = useDestinations();
@@ -18,13 +109,15 @@ export default function CustomTourRequest() {
   const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
-  // All hooks must be called before any early returns
-  const [step, setStep] = useState(1);
+  const [step, setStep]         = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [success, setSuccess] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [formData, setFormData] = useState({
-    destinations: [] as string[],
+  const [successId, setSuccessId] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [errors, setErrors]     = useState<FormErrors>({});
+  const [touched, setTouched]   = useState(false);
+
+  const [formData, setFormData] = useState<FormData>({
+    destinations: [],
     customDestination: '',
     startDate: '',
     endDate: '',
@@ -35,14 +128,13 @@ export default function CustomTourRequest() {
     accommodationType: 'standard',
     transportation: 'car',
     meals: 'breakfast',
-    activities: [] as string[],
+    activities: [],
     pickupLocation: '',
     specialRequests: '',
     contactPhone: '',
     contactEmail: '',
   });
 
-  // Update contact info when user loads
   useEffect(() => {
     if (user) {
       setFormData((prev) => ({
@@ -53,7 +145,6 @@ export default function CustomTourRequest() {
     }
   }, [user]);
 
-  // Redirect if not authenticated (after all hooks)
   useEffect(() => {
     if (!isAuthenticated) {
       navigate('/login', { state: { from: { pathname: '/custom-tour-request' } }, replace: true });
@@ -62,87 +153,98 @@ export default function CustomTourRequest() {
 
   if (!isAuthenticated) return null;
 
-  const handleDestinationToggle = (dest: string) => {
-    setFormData((prev) => {
-      const exists = prev.destinations.includes(dest);
-      return { ...prev, destinations: exists ? prev.destinations.filter((d) => d !== dest) : [...prev.destinations, dest] };
-    });
+  // Live validate current step when touched
+  const currentErrors = touched ? validateStep(step, formData) : {};
+  const isStepValid   = Object.keys(currentErrors).length === 0;
+
+  const updateField = (field: keyof FormData, value: any) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+    if (touched) setErrors(validateStep(step, { ...formData, [field]: value }));
   };
 
-  const handleActivityToggle = (activity: string) => {
-    setFormData((prev) => {
-      const exists = prev.activities.includes(activity);
-      return { ...prev, activities: exists ? prev.activities.filter((a) => a !== activity) : [...prev.activities, activity] };
-    });
+  const toggleDestination = (id: string) => {
+    const next = formData.destinations.includes(id)
+      ? formData.destinations.filter((d) => d !== id)
+      : [...formData.destinations, id];
+    updateField('destinations', next);
+  };
+
+  const toggleActivity = (act: string) => {
+    const next = formData.activities.includes(act)
+      ? formData.activities.filter((a) => a !== act)
+      : [...formData.activities, act];
+    updateField('activities', next);
+  };
+
+  const goNext = () => {
+    setTouched(true);
+    const errs = validateStep(step, formData);
+    setErrors(errs);
+    if (Object.keys(errs).length > 0) return;
+    setTouched(false);
+    setErrors({});
+    setStep((s) => s + 1);
+  };
+
+  const goBack = () => {
+    setTouched(false);
+    setErrors({});
+    setStep((s) => s - 1);
   };
 
   const handleSubmit = async () => {
-    if (formData.destinations.length === 0 && !formData.customDestination) {
-      setError('Please select at least one destination'); return;
-    }
-    if (!formData.startDate || !formData.endDate) {
-      setError('Please select travel dates'); return;
-    }
-    if (!formData.budget) {
-      setError('Please enter your budget'); return;
-    }
+    setTouched(true);
+    const errs = validateStep(4, formData);
+    setErrors(errs);
+    if (Object.keys(errs).length > 0) return;
+
+    setIsSubmitting(true);
+    setSubmitError(null);
     try {
-      setIsSubmitting(true);
-      setError(null);
-      const data = {
-        destinations: [...formData.destinations, formData.customDestination].filter(Boolean),
-        startDate: formData.startDate,
-        endDate: formData.endDate,
-        adults: formData.adults,
-        children: formData.children,
-        budget: parseFloat(formData.budget),
-        budgetType: formData.budgetType,
-        accommodationType: formData.accommodationType,
-        transportation: formData.transportation,
-        meals: formData.meals,
-        activities: formData.activities,
-        pickupLocation: formData.pickupLocation,
-        specialRequests: formData.specialRequests,
-        contactPhone: formData.contactPhone,
-        contactEmail: formData.contactEmail,
+      const payload = {
+        ...formData,
+        budget: Number(formData.budget),
+        duration: formData.startDate && formData.endDate
+          ? Math.max(1, Math.ceil((new Date(formData.endDate).getTime() - new Date(formData.startDate).getTime()) / 86400000))
+          : undefined,
       };
-      await create(data);
-      setSuccess(true);
+      const res = await create(payload);
+      const id = res?.data?._id || res?.data?.id || res?._id || 'submitted';
+      setSuccessId(id);
     } catch (err: any) {
-      setError(err.response?.data?.message || err.message || 'Failed to submit request');
+      setSubmitError(err?.response?.data?.message || 'Submission failed. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  if (success) {
+  const minDate = new Date().toISOString().split('T')[0];
+
+  // ── Success screen ───────────────────────────────────────────────────────
+
+  if (successId) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center p-4">
         <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="bg-white dark:bg-gray-800 rounded-2xl p-8 max-w-md w-full text-center shadow-xl border border-gray-200 dark:border-gray-700"
+          initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+          className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-xl p-8 max-w-md w-full text-center"
         >
-          <div className="w-16 h-16 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mx-auto mb-4">
+          <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-5">
             <Check className="w-8 h-8 text-green-500" />
           </div>
           <h2 className="text-2xl font-display font-bold text-gray-900 dark:text-white mb-2">Request Submitted!</h2>
           <p className="text-gray-500 dark:text-gray-400 mb-6">
-            We've received your custom tour request. Our team will get back to you within 24-48 hours.
+            Our team will review your custom tour request and reach out within 24–48 hours.
           </p>
           <div className="flex gap-3">
             <button
-              onClick={() => {
-                setSuccess(false);
-                setStep(1);
-                setFormData({ destinations: [], customDestination: '', startDate: '', endDate: '', adults: 1, children: 0, budget: '', budgetType: 'per_person', accommodationType: 'standard', transportation: 'car', meals: 'breakfast', activities: [], pickupLocation: '', specialRequests: '', contactPhone: user?.phone || '', contactEmail: user?.email || '' });
-              }}
-              className="flex-1 px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+              onClick={() => { setSuccessId(null); setStep(1); setFormData({ destinations: [], customDestination: '', startDate: '', endDate: '', adults: 1, children: 0, budget: '', budgetType: 'per_person', accommodationType: 'standard', transportation: 'car', meals: 'breakfast', activities: [], pickupLocation: '', specialRequests: '', contactPhone: user?.phone || '', contactEmail: user?.email || '' }); }}
+              className="flex-1 btn-outline py-2.5"
             >
-              Create Another
+              New Request
             </button>
-            <button onClick={() => navigate('/my-custom-tours')} className="flex-1 px-4 py-2 rounded-xl bg-primary-500 text-white hover:bg-primary-600">
-              View My Requests
+            <button onClick={() => navigate('/my-custom-tours')} className="flex-1 btn-primary py-2.5">
+              View Requests
             </button>
           </div>
         </motion.div>
@@ -150,236 +252,373 @@ export default function CustomTourRequest() {
     );
   }
 
+  // ── Form ─────────────────────────────────────────────────────────────────
+
+  const STEP_LABELS = ['Destinations & Dates', 'Travelers & Budget', 'Preferences', 'Contact & Review'];
+
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 py-10">
+      <div className="max-w-2xl mx-auto px-4">
+        {/* Hero */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-display font-bold text-gray-900 dark:text-white">Customize Your Tour</h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-2">Let us create the perfect personalized travel experience for you</p>
+          <h1 className="text-3xl md:text-4xl font-display font-bold text-gray-900 dark:text-white mb-2">
+            Plan Your Custom Tour
+          </h1>
+          <p className="text-gray-500 dark:text-gray-400">
+            Tell us your dream trip and we'll craft it just for you.
+          </p>
         </div>
 
-        {/* Progress Steps */}
-        <div className="flex items-center justify-center mb-8">
-          {[1, 2, 3, 4].map((s) => (
-            <div key={s} className="flex items-center">
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center font-medium transition-colors ${
-                step >= s ? 'bg-primary-500 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-500'
-              }`}>
-                {s}
+        {/* Progress */}
+        <div className="flex items-center justify-center mb-8 gap-1">
+          {STEP_LABELS.map((label, i) => (
+            <div key={i} className="flex items-center">
+              <div className={`flex flex-col items-center gap-1 ${i < 3 ? 'min-w-[70px]' : ''}`}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
+                  step > i + 1 ? 'bg-primary-500 text-white'
+                  : step === i + 1 ? 'bg-primary-500 text-white ring-4 ring-primary-100 dark:ring-primary-900/30'
+                  : 'bg-gray-200 dark:bg-gray-700 text-gray-500'
+                }`}>
+                  {step > i + 1 ? <Check className="w-4 h-4" /> : i + 1}
+                </div>
+                <span className={`text-[10px] text-center leading-tight hidden sm:block ${step === i + 1 ? 'text-primary-500 font-medium' : 'text-gray-400'}`}>
+                  {label}
+                </span>
               </div>
-              {s < 4 && <div className={`w-16 h-1 mx-2 transition-colors ${step > s ? 'bg-primary-500' : 'bg-gray-200 dark:bg-gray-700'}`} />}
+              {i < 3 && <div className={`h-0.5 w-8 sm:w-12 mx-1 rounded mb-4 transition-colors ${step > i + 1 ? 'bg-primary-500' : 'bg-gray-200 dark:bg-gray-700'}`} />}
             </div>
           ))}
         </div>
 
-        {error && (
-          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4 mb-6 flex items-center gap-3">
-            <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
-            <p className="text-red-700 dark:text-red-400">{error}</p>
+        {/* Card */}
+        <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-800">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+              Step {step}: {STEP_LABELS[step - 1]}
+            </h2>
           </div>
-        )}
 
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 md:p-8">
-          {/* Step 1: Destinations & Dates */}
-          {step === 1 && (
-            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                  <MapPin className="w-5 h-5 text-primary-500" />Where do you want to go?
-                </h2>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                  {destinations.map((dest: any) => (
-                    <button
-                      key={dest._id || dest.id}
-                      onClick={() => handleDestinationToggle(dest.name)}
-                      className={`p-4 rounded-xl border-2 text-left transition-all ${
-                        formData.destinations.includes(dest.name)
-                          ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
-                          : 'border-gray-200 dark:border-gray-700 hover:border-primary-200'
-                      }`}
-                    >
-                      <p className="font-medium text-gray-900 dark:text-white">{dest.name}</p>
-                      <p className="text-sm text-gray-500">{dest.state}</p>
-                    </button>
-                  ))}
-                </div>
-                <div className="mt-4">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Or specify your own destination</label>
-                  <input type="text" placeholder="Enter destination name" value={formData.customDestination} onChange={(e) => setFormData({ ...formData, customDestination: e.target.value })} className="input-field" />
-                </div>
-              </div>
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                  <Calendar className="w-5 h-5 text-primary-500" />When do you want to travel?
-                </h2>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Start Date *</label>
-                    <input type="date" value={formData.startDate} onChange={(e) => setFormData({ ...formData, startDate: e.target.value })} min={new Date().toISOString().split('T')[0]} className="input-field" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">End Date *</label>
-                    <input type="date" value={formData.endDate} onChange={(e) => setFormData({ ...formData, endDate: e.target.value })} min={formData.startDate || new Date().toISOString().split('T')[0]} className="input-field" />
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          )}
+          <div className="p-6 space-y-5">
+            <AnimatePresence mode="wait">
 
-          {/* Step 2: Travelers & Budget */}
-          {step === 2 && (
-            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                  <Users className="w-5 h-5 text-primary-500" />How many travelers?
-                </h2>
-                <div className="grid grid-cols-2 gap-4">
+              {/* ── Step 1: Destinations & Dates ── */}
+              {step === 1 && (
+                <motion.div key="step1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-5">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Adults *</label>
-                    <input type="number" value={formData.adults} onChange={(e) => setFormData({ ...formData, adults: parseInt(e.target.value) || 1 })} min={1} max={20} className="input-field" />
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Select Destinations <span className="text-red-500">*</span>
+                    </label>
+                    <div className="flex flex-wrap gap-2 mb-2">
+                      {destinations.map((d: any) => {
+                        const id = d._id || d.id;
+                        const selected = formData.destinations.includes(id);
+                        return (
+                          <button
+                            key={id}
+                            type="button"
+                            onClick={() => toggleDestination(id)}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-medium border-2 transition-all ${
+                              selected
+                                ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400'
+                                : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+                            }`}
+                          >
+                            <MapPin className="w-3.5 h-3.5" />
+                            {d.name}
+                            {selected && <X className="w-3 h-3" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <input
+                      type="text"
+                      value={formData.customDestination}
+                      onChange={(e) => updateField('customDestination', e.target.value)}
+                      className={`input-field ${(currentErrors.destinations && !formData.destinations.length && !formData.customDestination) ? 'input-error' : ''}`}
+                      placeholder="Or enter a custom destination…"
+                    />
+                    <FieldError msg={currentErrors.destinations} />
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Children</label>
-                    <input type="number" value={formData.children} onChange={(e) => setFormData({ ...formData, children: parseInt(e.target.value) || 0 })} min={0} max={10} className="input-field" />
-                  </div>
-                </div>
-              </div>
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                  <IndianRupee className="w-5 h-5 text-primary-500" />What's your budget?
-                </h2>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Budget (INR) *</label>
-                    <input type="number" value={formData.budget} onChange={(e) => setFormData({ ...formData, budget: e.target.value })} placeholder="Enter amount" className="input-field" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Budget Type</label>
-                    <select value={formData.budgetType} onChange={(e) => setFormData({ ...formData, budgetType: e.target.value })} className="input-field">
-                      <option value="per_person">Per Person</option>
-                      <option value="total">Total Trip</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          )}
 
-          {/* Step 3: Preferences */}
-          {step === 3 && (
-            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                  <Home className="w-5 h-5 text-primary-500" />Accommodation
-                </h2>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  {['budget', 'standard', 'premium', 'luxury'].map((type) => (
-                    <button key={type} onClick={() => setFormData({ ...formData, accommodationType: type })}
-                      className={`p-3 rounded-xl border-2 text-center transition-all ${formData.accommodationType === type ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20' : 'border-gray-200 dark:border-gray-700 hover:border-primary-200'}`}>
-                      <p className="font-medium capitalize text-gray-900 dark:text-white">{type}</p>
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                  <Car className="w-5 h-5 text-primary-500" />Transportation
-                </h2>
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                  {['flight', 'train', 'bus', 'car', 'mixed'].map((type) => (
-                    <button key={type} onClick={() => setFormData({ ...formData, transportation: type })}
-                      className={`p-3 rounded-xl border-2 text-center transition-all ${formData.transportation === type ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20' : 'border-gray-200 dark:border-gray-700 hover:border-primary-200'}`}>
-                      <p className="font-medium capitalize text-gray-900 dark:text-white">{type}</p>
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                  <UtensilsCrossed className="w-5 h-5 text-primary-500" />Meals
-                </h2>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  {['none', 'breakfast', 'half_board', 'full_board'].map((type) => (
-                    <button key={type} onClick={() => setFormData({ ...formData, meals: type })}
-                      className={`p-3 rounded-xl border-2 text-center transition-all ${formData.meals === type ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20' : 'border-gray-200 dark:border-gray-700 hover:border-primary-200'}`}>
-                      <p className="font-medium capitalize text-gray-900 dark:text-white">{type.replace('_', ' ')}</p>
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Activities (Optional)</h2>
-                <div className="flex flex-wrap gap-2">
-                  {activityOptions.map((activity) => (
-                    <button key={activity} onClick={() => handleActivityToggle(activity)}
-                      className={`px-3 py-1.5 rounded-full text-sm transition-all ${formData.activities.includes(activity) ? 'bg-primary-500 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200'}`}>
-                      {activity}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </motion.div>
-          )}
-
-          {/* Step 4: Contact & Submit */}
-          {step === 4 && (
-            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Contact Information</h2>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Phone Number</label>
-                    <input type="tel" value={formData.contactPhone} onChange={(e) => setFormData({ ...formData, contactPhone: e.target.value })} className="input-field" placeholder="+91 98765 43210" />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                        Start Date <span className="text-red-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                        <input
+                          type="date"
+                          min={minDate}
+                          value={formData.startDate}
+                          onChange={(e) => updateField('startDate', e.target.value)}
+                          className={`input-field pl-9 ${currentErrors.startDate ? 'input-error' : ''}`}
+                        />
+                      </div>
+                      <FieldError msg={currentErrors.startDate} />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                        End Date <span className="text-red-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                        <input
+                          type="date"
+                          min={formData.startDate || minDate}
+                          value={formData.endDate}
+                          onChange={(e) => updateField('endDate', e.target.value)}
+                          className={`input-field pl-9 ${currentErrors.endDate ? 'input-error' : ''}`}
+                        />
+                      </div>
+                      <FieldError msg={currentErrors.endDate} />
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email</label>
-                    <input type="email" value={formData.contactEmail} onChange={(e) => setFormData({ ...formData, contactEmail: e.target.value })} className="input-field" />
-                  </div>
-                </div>
-                <div className="mt-4">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Pickup Location</label>
-                  <input type="text" value={formData.pickupLocation} onChange={(e) => setFormData({ ...formData, pickupLocation: e.target.value })} placeholder="Airport, Hotel, or specific address" className="input-field" />
-                </div>
-                <div className="mt-4">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Special Requests</label>
-                  <textarea value={formData.specialRequests} onChange={(e) => setFormData({ ...formData, specialRequests: e.target.value })} placeholder="Any special requirements or preferences..." rows={4} className="input-field resize-none" />
-                </div>
-              </div>
-              <div className="bg-gray-50 dark:bg-gray-900 rounded-xl p-4">
-                <h3 className="font-medium text-gray-900 dark:text-white mb-3">Request Summary</h3>
-                <div className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
-                  <p><span className="font-medium">Destinations:</span> {[...formData.destinations, formData.customDestination].filter(Boolean).join(', ') || 'Not specified'}</p>
-                  <p><span className="font-medium">Dates:</span> {formData.startDate || 'Not set'} to {formData.endDate || 'Not set'}</p>
-                  <p><span className="font-medium">Travelers:</span> {formData.adults} adult(s), {formData.children} child(ren)</p>
-                  <p><span className="font-medium">Budget:</span> ₹{formData.budget || '0'} {formData.budgetType === 'per_person' ? 'per person' : 'total'}</p>
-                  <p><span className="font-medium">Accommodation:</span> {formData.accommodationType}</p>
-                </div>
-              </div>
-            </motion.div>
-          )}
+                </motion.div>
+              )}
 
-          {/* Navigation */}
-          <div className="flex items-center justify-between mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
-            {step > 1 ? (
-              <button onClick={() => setStep(step - 1)} className="px-6 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200">
-                Previous
-              </button>
-            ) : <div />}
+              {/* ── Step 2: Travelers & Budget ── */}
+              {step === 2 && (
+                <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-5">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                        Adults <span className="text-red-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                        <input
+                          type="number"
+                          min={1}
+                          max={50}
+                          value={formData.adults}
+                          onChange={(e) => updateField('adults', Math.max(1, Number(e.target.value)))}
+                          className={`input-field pl-9 ${currentErrors.adults ? 'input-error' : ''}`}
+                        />
+                      </div>
+                      <FieldError msg={currentErrors.adults} />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Children</label>
+                      <div className="relative">
+                        <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                        <input
+                          type="number"
+                          min={0}
+                          max={50}
+                          value={formData.children}
+                          onChange={(e) => updateField('children', Math.max(0, Number(e.target.value)))}
+                          className="input-field pl-9"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                      Budget (₹) <span className="text-red-500">*</span>
+                    </label>
+                    <div className="flex gap-3">
+                      <div className="relative flex-1">
+                        <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                        <input
+                          type="number"
+                          min={1}
+                          value={formData.budget}
+                          onChange={(e) => updateField('budget', e.target.value)}
+                          className={`input-field pl-9 ${currentErrors.budget ? 'input-error' : ''}`}
+                          placeholder="e.g. 25000"
+                        />
+                      </div>
+                      <select
+                        value={formData.budgetType}
+                        onChange={(e) => updateField('budgetType', e.target.value)}
+                        className="input-field w-auto"
+                      >
+                        <option value="per_person">Per Person</option>
+                        <option value="total">Total</option>
+                      </select>
+                    </div>
+                    <FieldError msg={currentErrors.budget} />
+                  </div>
+                </motion.div>
+              )}
+
+              {/* ── Step 3: Preferences ── */}
+              {step === 3 && (
+                <motion.div key="step3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-5">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Accommodation</label>
+                      <select value={formData.accommodationType} onChange={(e) => updateField('accommodationType', e.target.value)} className="input-field">
+                        <option value="budget">Budget</option>
+                        <option value="standard">Standard</option>
+                        <option value="premium">Premium</option>
+                        <option value="luxury">Luxury</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Transportation</label>
+                      <select value={formData.transportation} onChange={(e) => updateField('transportation', e.target.value)} className="input-field">
+                        <option value="car">Car</option>
+                        <option value="bus">Bus</option>
+                        <option value="train">Train</option>
+                        <option value="flight">Flight</option>
+                        <option value="mixed">Mixed</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Meals</label>
+                      <select value={formData.meals} onChange={(e) => updateField('meals', e.target.value)} className="input-field">
+                        <option value="none">No meals</option>
+                        <option value="breakfast">Breakfast only</option>
+                        <option value="half_board">Half board</option>
+                        <option value="full_board">Full board</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Activities (optional)</label>
+                    <div className="flex flex-wrap gap-2">
+                      {ACTIVITIES.map((act) => {
+                        const selected = formData.activities.includes(act);
+                        return (
+                          <button
+                            key={act}
+                            type="button"
+                            onClick={() => toggleActivity(act)}
+                            className={`px-3 py-1.5 rounded-xl text-sm font-medium border-2 transition-all ${
+                              selected
+                                ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400'
+                                : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:border-gray-300'
+                            }`}
+                          >
+                            {act}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+              {/* ── Step 4: Contact & Review ── */}
+              {step === 4 && (
+                <motion.div key="step4" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                        Phone Number <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="tel"
+                        value={formData.contactPhone}
+                        onChange={(e) => updateField('contactPhone', e.target.value)}
+                        className={`input-field ${currentErrors.contactPhone ? 'input-error' : ''}`}
+                        placeholder="+91 98765 43210"
+                      />
+                      <FieldError msg={currentErrors.contactPhone} />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                        Email Address <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="email"
+                        value={formData.contactEmail}
+                        onChange={(e) => updateField('contactEmail', e.target.value)}
+                        className={`input-field ${currentErrors.contactEmail ? 'input-error' : ''}`}
+                        placeholder="you@email.com"
+                      />
+                      <FieldError msg={currentErrors.contactEmail} />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Pickup Location</label>
+                    <input
+                      type="text"
+                      value={formData.pickupLocation}
+                      onChange={(e) => updateField('pickupLocation', e.target.value)}
+                      className="input-field"
+                      placeholder="Airport, hotel, or address"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Special Requests</label>
+                    <textarea
+                      value={formData.specialRequests}
+                      onChange={(e) => updateField('specialRequests', e.target.value)}
+                      rows={3}
+                      className="input-field resize-none"
+                      placeholder="Dietary requirements, accessibility needs, any special preferences…"
+                    />
+                  </div>
+
+                  {/* Summary */}
+                  <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-4 text-sm space-y-2">
+                    <h3 className="font-semibold text-gray-900 dark:text-white mb-3">Summary</h3>
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <span className="text-gray-500">Destinations</span>
+                      <span className="text-gray-900 dark:text-white font-medium">
+                        {formData.destinations.length > 0
+                          ? destinations.filter((d: any) => formData.destinations.includes(d._id || d.id)).map((d: any) => d.name).join(', ')
+                          : formData.customDestination || '—'}
+                      </span>
+                      <span className="text-gray-500">Dates</span>
+                      <span className="text-gray-900 dark:text-white font-medium">
+                        {formData.startDate && formData.endDate
+                          ? `${new Date(formData.startDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })} – ${new Date(formData.endDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}`
+                          : '—'}
+                      </span>
+                      <span className="text-gray-500">Travelers</span>
+                      <span className="text-gray-900 dark:text-white font-medium">{formData.adults} adult{formData.adults > 1 ? 's' : ''}{formData.children > 0 ? `, ${formData.children} child${formData.children > 1 ? 'ren' : ''}` : ''}</span>
+                      <span className="text-gray-500">Budget</span>
+                      <span className="text-gray-900 dark:text-white font-medium">₹{Number(formData.budget || 0).toLocaleString('en-IN')} ({formData.budgetType === 'per_person' ? 'per person' : 'total'})</span>
+                    </div>
+                  </div>
+
+                  {submitError && (
+                    <div className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl text-red-700 dark:text-red-400 text-sm">
+                      <AlertCircle className="w-4 h-4 flex-shrink-0" />{submitError}
+                    </div>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* Navigation buttons */}
+          <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50">
+            <button
+              type="button"
+              onClick={step === 1 ? () => navigate('/') : goBack}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            >
+              <ChevronLeft className="w-4 h-4" />
+              {step === 1 ? 'Back to Home' : 'Back'}
+            </button>
 
             {step < 4 ? (
-              <button onClick={() => setStep(step + 1)} className="flex items-center gap-2 px-6 py-2 rounded-xl bg-primary-500 text-white hover:bg-primary-600">
-                Next
+              <button
+                type="button"
+                onClick={goNext}
+                className="flex items-center gap-2 btn-primary"
+              >
+                Continue <ChevronRight className="w-4 h-4" />
               </button>
             ) : (
-              <button onClick={handleSubmit} disabled={isSubmitting} className="flex items-center gap-2 px-6 py-2 rounded-xl bg-primary-500 text-white hover:bg-primary-600 disabled:opacity-50">
-                {isSubmitting ? (
-                  <span className="flex items-center gap-2">
-                    <span className="inline-block animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
-                    Submitting...
-                  </span>
-                ) : (
-                  <><Send className="w-4 h-4" />Submit Request</>
-                )}
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={isSubmitting}
+                className="flex items-center gap-2 btn-primary min-w-[140px] justify-center"
+              >
+                {isSubmitting
+                  ? <><span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Submitting…</>
+                  : <><Send className="w-4 h-4" />Submit Request</>}
               </button>
             )}
           </div>

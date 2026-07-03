@@ -1,11 +1,12 @@
 import api from './api';
 
 const notificationService = {
-  getAll: (params = {}) => api.get('/notifications', { params }),
-  getUnreadCount: () => api.get('/notifications/unread-count'),
-  markRead: (id) => api.put(`/notifications/${id}/read`),
-  markAllRead: () => api.put('/notifications/read-all'),
-  deleteRead: () => api.delete('/notifications/read'),
+  getAll:          (params = {}) => api.get('/notifications', { params }),
+  getUnreadCount:  ()            => api.get('/notifications/unread-count'),
+  markAsRead:      (id)          => api.put(`/notifications/${id}/read`),
+  markAllAsRead:   ()            => api.put('/notifications/read-all'),
+  delete:          (id)          => api.delete(`/notifications/${id}`),
+  deleteAllRead:   ()            => api.delete('/notifications/read'),
 };
 
 export default notificationService;

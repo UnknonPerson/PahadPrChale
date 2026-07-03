@@ -3,88 +3,82 @@ import notificationService from '../services/notificationService';
 
 export function useNotifications(params = {}) {
   const [notifications, setNotifications] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const [unreadCount, setUnreadCount]     = useState(0);
+  const [loading, setLoading]             = useState(true);
+  const [error, setError]                 = useState(null);
 
-  const fetchNotifications = useCallback(async () => {
+  const paramsKey = JSON.stringify(params);
+
+  const fetch = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await notificationService.getAll(params);
-      const data = response.data || response;
-      setNotifications(data.notifications || data || []);
-      setUnreadCount(data.unreadCount || 0);
+      const res = await notificationService.getAll(params);
+      const items = res?.data?.notifications ?? res?.notifications ?? res?.data ?? [];
+      const list  = Array.isArray(items) ? items : [];
+      setNotifications(list);
+      setUnreadCount(list.filter((n) => !n.isRead).length);
     } catch (err) {
-      console.error('Failed to fetch notifications:', err);
-      setError(err.message || 'Failed to load notifications');
+      setError(err?.response?.data?.message || 'Failed to load notifications');
       setNotifications([]);
     } finally {
       setLoading(false);
     }
-  }, [params?.page, params?.limit, params?.unread]);
+  }, [paramsKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => {
-    fetchNotifications();
-  }, [fetchNotifications]);
+  useEffect(() => { fetch(); }, [fetch]);
 
-  const markAsRead = async (id) => {
+  // ── Optimistic updates ────────────────────────────────────────────────
+
+  const markAsRead = useCallback(async (id) => {
+    // Optimistic
+    setNotifications((prev) =>
+      prev.map((n) => (n._id === id ? { ...n, isRead: true } : n))
+    );
+    setUnreadCount((c) => Math.max(0, c - 1));
     try {
       await notificationService.markAsRead(id);
-      setNotifications((prev) =>
-        prev.map((n) => (n._id === id ? { ...n, isRead: true } : n))
-      );
-      setUnreadCount((prev) => Math.max(0, prev - 1));
-    } catch (err) {
-      console.error('Failed to mark notification as read:', err);
-      throw err;
+    } catch {
+      // Rollback on error
+      fetch();
     }
-  };
+  }, [fetch]);
 
-  const markAllAsRead = async () => {
+  const markAllAsRead = useCallback(async () => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+    setUnreadCount(0);
     try {
       await notificationService.markAllAsRead();
-      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
-      setUnreadCount(0);
-    } catch (err) {
-      console.error('Failed to mark all notifications as read:', err);
-      throw err;
+    } catch {
+      fetch();
     }
-  };
+  }, [fetch]);
 
-  const remove = async (id) => {
+  const remove = useCallback(async (id) => {
+    const removed = notifications.find((n) => n._id === id);
+    setNotifications((prev) => prev.filter((n) => n._id !== id));
+    if (removed && !removed.isRead) setUnreadCount((c) => Math.max(0, c - 1));
     try {
       await notificationService.delete(id);
-      setNotifications((prev) => prev.filter((n) => n._id !== id));
-    } catch (err) {
-      console.error('Failed to delete notification:', err);
-      throw err;
+    } catch {
+      fetch();
     }
-  };
+  }, [notifications, fetch]);
 
-  return {
-    notifications,
-    loading,
-    error,
-    unreadCount,
-    markAsRead,
-    markAllAsRead,
-    remove,
-    refetch: fetchNotifications,
-  };
+  const refetch = fetch;
+
+  return { notifications, unreadCount, loading, error, markAsRead, markAllAsRead, remove, refetch };
 }
 
 export function useUnreadNotificationCount() {
-  const [count, setCount] = useState(0);
+  const [count, setCount]   = useState(0);
   const [loading, setLoading] = useState(true);
 
-  const fetchCount = useCallback(async () => {
+  const refetch = useCallback(async () => {
     try {
-      const response = await notificationService.getUnreadCount();
-      const data = response.data || response;
-      setCount(data.count || 0);
-    } catch (err) {
-      console.error('Failed to fetch unread count:', err);
+      const res = await notificationService.getUnreadCount();
+      setCount(res?.data?.count ?? res?.count ?? 0);
+    } catch {
       setCount(0);
     } finally {
       setLoading(false);
@@ -92,10 +86,10 @@ export function useUnreadNotificationCount() {
   }, []);
 
   useEffect(() => {
-    fetchCount();
-    const interval = setInterval(fetchCount, 30000);
-    return () => clearInterval(interval);
-  }, [fetchCount]);
+    refetch();
+    const id = setInterval(refetch, 30_000);
+    return () => clearInterval(id);
+  }, [refetch]);
 
-  return { count, loading, refetch: fetchCount };
+  return { count, loading, refetch };
 }

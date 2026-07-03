@@ -4,7 +4,8 @@ import {
   CalendarCheck, IndianRupee, Map, Users, TrendingUp, ArrowUpRight, ArrowDownRight, Clock, ChevronRight,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import  bookingService  from '../../services/bookingService';
+import bookingService from '../../services/bookingService';
+import api from '../../services/api';
 import { fallbackDashboardStats } from '../../data/adminData';
 
 const getStatusColor = (status: string) => {
@@ -28,30 +29,34 @@ export default function Dashboard() {
     const fetchDashboardData = async () => {
       try {
         setIsLoading(true);
-        const bookingsResponse = await bookingService.getAll();
-        const bookings = Array.isArray(bookingsResponse?.data)
-          ? bookingsResponse.data
-          : Array.isArray(bookingsResponse)
-          ? bookingsResponse
-          : bookingsResponse?.bookings || [];
 
-        if (bookings.length > 0) {
-          setRecentBookings(bookings.slice(0, 5));
-          const pending = bookings.filter((b: any) => b.status === 'pending').length;
-          const revenue = bookings
-            .filter((b: any) => b.status === 'completed')
-            .reduce((sum: number, b: any) => sum + (b.totalAmount || 0), 0);
-          setPendingCount(pending);
-          setStats((prev) => ({
-            ...prev,
-            totalBookings: bookings.length,
-            revenue,
-            activeTours: pending,
-          }));
+        const [bookingsRes, usersRes] = await Promise.allSettled([
+          bookingService.getAll({ limit: 100 }),
+          api.get('/users', { params: { limit: 1 } }),
+        ]);
+
+        if (bookingsRes.status === 'fulfilled') {
+          const raw = bookingsRes.value;
+          const bookings = raw?.data ?? (Array.isArray(raw) ? raw : []);
+          if (bookings.length > 0) {
+            setRecentBookings(bookings.slice(0, 5));
+            const pending = bookings.filter((b: any) => b.status === 'pending').length;
+            const revenue = bookings
+              .filter((b: any) => b.status === 'completed')
+              .reduce((sum: number, b: any) => sum + (b.totalAmount || 0), 0);
+            setPendingCount(pending);
+            setStats((prev) => ({ ...prev, totalBookings: bookings.length, revenue, activeTours: pending }));
+          }
         }
+
+        if (usersRes.status === 'fulfilled') {
+          const total = usersRes.value?.pagination?.total ?? 0;
+          if (total > 0) setStats((prev) => ({ ...prev, registeredUsers: total }));
+        }
+
         setLastUpdated(new Date());
       } catch (error) {
-        console.error('Failed to fetch dashboard data:', error);
+        console.error('Dashboard fetch error:', error);
       } finally {
         setIsLoading(false);
       }
