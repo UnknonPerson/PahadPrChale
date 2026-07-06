@@ -1,14 +1,17 @@
-import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-// @ts-expect-error - authService is a JavaScript module without a declaration file
+import { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
+// @ts-expect-error - JS module
 import authService from '../services/authService.js';
 
 interface User {
   id: string;
+  _id?: string;
   name: string;
   email: string;
   phone?: string;
   role: 'admin' | 'user';
   avatar?: string;
+  profileImage?: string;
+  isEmailVerified?: boolean;
 }
 
 interface LoginResult {
@@ -30,53 +33,71 @@ interface AuthContextType {
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+// Extract user object from any API response shape.
+// Backend sends: { success, message, data: { user, token } }
+// api.js interceptor returns response.data (the full body above).
+function extractUser(payload: any): User | null {
+  if (!payload) return null;
+  // Prefer the nested data.user path (our backend's shape)
+  const u = payload?.data?.user ?? payload?.user ?? payload;
+  // Sanity-check: must have an email to be a real user object
+  if (u && typeof u === 'object' && u.email) return u as User;
+  return null;
+}
 
-  const checkAuth = useCallback(async () => {
-    try {
-      const response = await authService.getCurrentUser();
-      const userData = response.data?.user || response.data || response;
-      setUser(userData);
-    } catch {
-      setUser(null);
-    } finally {
-      setLoading(false);
-    }
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [user, setUser]       = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  // Guard against calling checkAuth more than once on mount
+  const initialized = useRef(false);
+
+  // Restore session on mount — single call, never repeated
+  useEffect(() => {
+    if (initialized.current) return;
+    initialized.current = true;
+
+    authService.getCurrentUser()
+      .then((payload: any) => {
+        const u = extractUser(payload);
+        setUser(u);
+      })
+      .catch(() => setUser(null))
+      .finally(() => setLoading(false));
   }, []);
 
-  useEffect(() => {
-    checkAuth();
-  }, [checkAuth]);
-
   const login = async (email: string, password: string): Promise<LoginResult> => {
-    setLoading(true);
     try {
-      const response = await authService.login(email, password);
-      const userData = response.data?.user || response.user || response;
-      setUser(userData);
-      return { success: true, user: userData };
+      const payload = await authService.login(email, password);
+      const u = extractUser(payload);
+      if (!u) throw new Error('No user returned from server');
+      setUser(u);
+      return { success: true, user: u };
     } catch (error: any) {
-      const message = error.response?.data?.message || error.message || 'Login failed';
+      const message =
+        error?.response?.data?.message ||
+        error?.message ||
+        'Invalid email or password';
       return { success: false, message };
-    } finally {
-      setLoading(false);
     }
   };
 
-  const register = async (name: string, email: string, phone: string, password: string): Promise<{ success: boolean; message?: string }> => {
-    setLoading(true);
+  const register = async (
+    name: string,
+    email: string,
+    phone: string,
+    password: string,
+  ): Promise<{ success: boolean; message?: string }> => {
     try {
-      const response = await authService.register(name, email, password, phone);
-      const userData = response.data?.user || response.user || response;
-      setUser(userData);
+      const payload = await authService.register(name, email, phone, password);
+      const u = extractUser(payload);
+      if (u) setUser(u);
       return { success: true, message: 'Registration successful' };
     } catch (error: any) {
-      const message = error.response?.data?.message || error.message || 'Registration failed';
+      const message =
+        error?.response?.data?.message ||
+        error?.message ||
+        'Registration failed';
       return { success: false, message };
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -84,20 +105,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await authService.logout();
     } catch {
-      // ignore
+      // ignore — still clear local state
     } finally {
       setUser(null);
     }
   };
 
-  const updateProfile = async (data: Partial<User>): Promise<{ success: boolean; message?: string }> => {
+  const updateProfile = async (
+    data: Partial<User>,
+  ): Promise<{ success: boolean; message?: string }> => {
     try {
-      const response = await authService.updateProfile(data);
-      const userData = response.data?.user || response;
-      setUser(userData);
+      const payload = await authService.updateProfile(data);
+      const u = extractUser(payload);
+      if (u) setUser(u);
       return { success: true, message: 'Profile updated successfully' };
     } catch (error: any) {
-      const message = error.response?.data?.message || error.message || 'Failed to update profile';
+      const message =
+        error?.response?.data?.message ||
+        error?.message ||
+        'Failed to update profile';
       return { success: false, message };
     }
   };
@@ -121,9 +147,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 }
 
 export function useAuth() {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error('useAuth must be used within an AuthProvider');
+  return ctx;
 }

@@ -21,6 +21,7 @@ import activityRoutes from './routes/activityRoutes.js';
 import customTourRequestRoutes from './routes/customTourRequestRoutes.js';
 import reviewRoutes from './routes/reviewRoutes.js';
 import userRoutes from './routes/userRoutes.js';
+import wishlistRoutes from './routes/wishlistRoutes.js';
 
 const app = express();
 app.set('trust proxy', 1);
@@ -91,6 +92,7 @@ app.use('/api/activities', activityRoutes);
 app.use('/api/custom-tours', customTourRequestRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/wishlist', wishlistRoutes);
 
 // ─── Health check ─────────────────────────────────────────────────────────────
 

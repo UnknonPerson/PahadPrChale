@@ -1,64 +1,39 @@
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_ANON_KEY
-);
+import api from './api';
 
 export interface WishlistItemRow {
-  id?: string;
-  user_id: string;
-  item_id: string;
-  item_type: 'package' | 'hotel' | 'destination' | 'vehicle';
+  _id?: string;
+  itemId: string;
+  itemType: 'package' | 'hotel' | 'destination' | 'vehicle';
   name: string;
   image?: string | null;
   price?: number | null;
-  price_label?: string | null;
+  priceLabel?: string | null;
   destination?: string | null;
   description?: string | null;
-  added_at?: string;
+  createdAt?: string;
 }
 
+// All methods call the Express /api/wishlist endpoints.
+// The api.js interceptor already unwraps response.data → { success, message, data }
+// so each call returns the full body. We extract .data.items / .data.item below.
+
 const wishlistService = {
-  /** Fetch all wishlist items for a user */
-  getAll: async (userId: string): Promise<WishlistItemRow[]> => {
-    const { data, error } = await supabase
-      .from('wishlist_items')
-      .select('*')
-      .eq('user_id', userId)
-      .order('added_at', { ascending: false });
-    if (error) throw error;
-    return data ?? [];
+  getAll: async (): Promise<WishlistItemRow[]> => {
+    const payload: any = await api.get('/wishlist');
+    return payload?.data?.items ?? payload?.items ?? [];
   },
 
-  /** Add a new item (upsert — safe if already exists) */
-  add: async (item: WishlistItemRow): Promise<WishlistItemRow> => {
-    const { data, error } = await supabase
-      .from('wishlist_items')
-      .upsert(item, { onConflict: 'user_id,item_id' })
-      .select()
-      .maybeSingle();
-    if (error) throw error;
-    return data as WishlistItemRow;
+  add: async (item: Omit<WishlistItemRow, '_id' | 'createdAt'>): Promise<WishlistItemRow> => {
+    const payload: any = await api.post('/wishlist', item);
+    return payload?.data?.item ?? payload?.item ?? item;
   },
 
-  /** Remove a single item by item_id + user_id */
-  remove: async (userId: string, itemId: string): Promise<void> => {
-    const { error } = await supabase
-      .from('wishlist_items')
-      .delete()
-      .eq('user_id', userId)
-      .eq('item_id', itemId);
-    if (error) throw error;
+  remove: async (itemId: string): Promise<void> => {
+    await api.delete(`/wishlist/${encodeURIComponent(itemId)}`);
   },
 
-  /** Remove all items for a user */
-  clear: async (userId: string): Promise<void> => {
-    const { error } = await supabase
-      .from('wishlist_items')
-      .delete()
-      .eq('user_id', userId);
-    if (error) throw error;
+  clear: async (): Promise<void> => {
+    await api.delete('/wishlist/clear');
   },
 };
 
